@@ -36,3 +36,4 @@ This repo hosts the Network Automation Platform reboot (Phoenix + LiveView + Mis
   export NET_AUTO_LAB_DEFAULT_PASSPHRASE=
   ```
 - Secrets are resolved at runtime via `NetAuto.Secrets.fetch/2`; nothing sensitive is stored in the database.
+- See `docs/secrets.md` for the complete matrix and telemetry event details.

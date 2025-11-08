@@ -12,6 +12,13 @@ defmodule NetAuto.SecretsTest do
     def fetch(_cred_ref, _opts), do: {:ok, %Credential{cred_ref: "TEST", password: "secret"}}
   end
 
+  defmodule VaultAdapter do
+    @behaviour NetAuto.Secrets
+
+    @impl true
+    def fetch("path/to/secret", _opts), do: {:ok, %Credential{cred_ref: "vault", password: "vault-secret"}}
+  end
+
   setup do
     original = Application.get_env(:net_auto, NetAuto.Secrets)
     Application.put_env(:net_auto, NetAuto.Secrets, adapter: StubAdapter)
@@ -83,5 +90,16 @@ defmodule NetAuto.SecretsTest do
     test "fetch/2 errors when neither password nor key present" do
       assert {:error, :missing_secret} = Env.fetch("missing")
     end
+  end
+
+  test "prefixed adapters route to configured module" do
+    Application.put_env(:net_auto, NetAuto.Secrets,
+      adapter: StubAdapter,
+      adapters: [{"vault", VaultAdapter}, {:env, StubAdapter}]
+    )
+
+    assert {:ok, %Credential{password: "vault-secret"}} = Secrets.fetch("vault:path/to/secret")
+    assert {:ok, %Credential{password: "secret"}} = Secrets.fetch("env:TEST")
+    assert {:ok, %Credential{password: "secret"}} = Secrets.fetch("TEST")
   end
 end

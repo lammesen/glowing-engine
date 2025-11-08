@@ -18,7 +18,7 @@ Ready to run in production? Please [check our deployment guides](https://hexdocs
   export NET_AUTO_LAB_DEFAULT_PASSWORD=changeme
   export NET_AUTO_LAB_DEFAULT_PRIVKEY_BASE64=\"$(base64 -w0 ~/.ssh/id_rsa)\"
   ```
-- The Secrets adapter reads these values when a device/run executes; do not persist passwords or keys in the database. See `../docs/secrets.md` for the complete reference.
+- The Secrets adapter reads these values when a device/run executes; do not persist passwords or keys in the database. See `../docs/secrets.md` for the complete reference. Prefix a `cred_ref` with `env:` (default) or another adapter key such as `vault:` to route lookups.
 
 ## Telemetry
 

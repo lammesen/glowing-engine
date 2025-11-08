@@ -24,9 +24,15 @@ config :net_auto,
   ecto_repos: [NetAuto.Repo],
   generators: [timestamp_type: :utc_datetime]
 
-config :net_auto, NetAuto.Secrets, adapter: NetAuto.Secrets.Env
+config :net_auto, NetAuto.Secrets,
+  adapter: NetAuto.Secrets.Env,
+  adapters: [env: NetAuto.Secrets.Env]
 config :net_auto, NetAuto.Protocols, adapter: NetAuto.Protocols.SSHAdapter
 config :net_auto, NetAuto.Protocols.SSHAdapter, ssh: NetAuto.Protocols.SSHEx
+
+config :net_auto, NetAuto.PromEx,
+  grafana: :disabled,
+  manual_metrics_start_delay: :timer.seconds(10)
 
 config :net_auto, :network_client, NetAuto.Network.LocalRunner
 

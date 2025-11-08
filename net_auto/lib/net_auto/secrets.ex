@@ -8,10 +8,10 @@ defmodule NetAuto.Secrets do
   @callback fetch(String.t(), keyword()) :: {:ok, Credential.t()} | {:error, term()}
 
   def fetch(cred_ref, opts \\ []) when is_binary(cred_ref) do
-    adapter = adapter()
+    {adapter, normalized_ref} = adapter_for(cred_ref)
     start = System.monotonic_time()
 
-    case adapter.fetch(cred_ref, opts) do
+    case adapter.fetch(normalized_ref, opts) do
       {:ok, _credential} = result ->
         emit_telemetry(start, cred_ref, :ok)
         result
@@ -22,9 +22,35 @@ defmodule NetAuto.Secrets do
     end
   end
 
-  defp adapter do
-    Application.get_env(:net_auto, __MODULE__, adapter: NetAuto.Secrets.Dummy)
-    |> Keyword.fetch!(:adapter)
+  defp adapter_for(cred_ref) do
+    config = Application.get_env(:net_auto, __MODULE__, [])
+    default = Keyword.get(config, :adapter, NetAuto.Secrets.Dummy)
+    adapters = adapters_map(Keyword.get(config, :adapters, []))
+
+    case split_prefix(cred_ref) do
+      {prefix, rest} ->
+        case Map.get(adapters, prefix) do
+          nil -> {default, cred_ref}
+          module -> {module, rest}
+        end
+
+      :default ->
+        {default, cred_ref}
+    end
+  end
+
+  defp adapters_map(list) do
+    Enum.into(list, %{}, fn
+      {key, module} when is_atom(key) -> {Atom.to_string(key), module}
+      {key, module} when is_binary(key) -> {key, module}
+    end)
+  end
+
+  defp split_prefix(ref) do
+    case String.split(ref, ":", parts: 2) do
+      [prefix, rest] when rest != "" -> {prefix, rest}
+      _ -> :default
+    end
   end
 
   defp emit_telemetry(start, cred_ref, result) do

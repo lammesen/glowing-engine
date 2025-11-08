@@ -2,6 +2,19 @@
 
 `NetAuto.Secrets` resolves runtime credentials via adapters. For WS03 we ship the Env adapter, which reads OS variables and never persists plaintext secrets.
 
+You can register multiple adapters (env, vault, bitwarden, etc.) and select them by prefixing the `cred_ref`. Example:
+
+```elixir
+config :net_auto, NetAuto.Secrets,
+  adapter: NetAuto.Secrets.Env,
+  adapters: [env: NetAuto.Secrets.Env, vault: NetAuto.Secrets.Vault]
+```
+
+- `cred_ref: "env:LAB_DEFAULT"` (or just `"LAB_DEFAULT"`) uses the env adapter.
+- `cred_ref: "vault:path/to/secret"` routes to `NetAuto.Secrets.Vault.fetch/2` and passes `"path/to/secret"`.
+
+This keeps future Vault/AWS/Bitwarden integrations pluggable without touching callers.
+
 ## Naming convention
 
 NetAuto.Protocols.SSHAdapter calls `NetAuto.Secrets.fetch/2` before opening any SSH session, so whichever secrets adapter you configure (env, Vault, Bitwarden, etc.) just needs to implement that behaviour.

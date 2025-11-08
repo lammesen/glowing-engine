@@ -1,11 +1,11 @@
 import Config
 
-# Configure your database
+# Configure your database (override via PG* env vars)
 config :net_auto, NetAuto.Repo,
-  username: "postgres",
-  password: "postgres",
-  hostname: "localhost",
-  database: "net_auto_dev",
+  username: System.get_env("PGUSER", "postgres"),
+  password: System.get_env("PGPASSWORD", ""),
+  hostname: System.get_env("PGHOST", "localhost"),
+  database: System.get_env("PGDATABASE", "net_auto_dev"),
   stacktrace: true,
   show_sensitive_data_on_connection_error: true,
   pool_size: 10

@@ -6,10 +6,12 @@ import Config
 # to provide built-in test partitioning in CI environment.
 # Run `mix help test` for more information.
 config :net_auto, NetAuto.Repo,
-  username: "postgres",
-  password: "postgres",
-  hostname: "localhost",
-  database: "net_auto_test#{System.get_env("MIX_TEST_PARTITION")}",
+  username: System.get_env("PGUSER", "postgres"),
+  password: System.get_env("PGPASSWORD", ""),
+  hostname: System.get_env("PGHOST", "localhost"),
+  database:
+    (System.get_env("PGDATABASE") || "net_auto_test") <>
+      (System.get_env("MIX_TEST_PARTITION") || ""),
   pool: Ecto.Adapters.SQL.Sandbox,
   pool_size: System.schedulers_online() * 2
 

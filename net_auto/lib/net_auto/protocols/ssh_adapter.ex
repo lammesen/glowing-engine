@@ -49,12 +49,20 @@ defmodule NetAuto.Protocols.SSHAdapter do
   defp exec(conn, command, opts, on_chunk, metadata) do
     timeout = Keyword.get(opts, :cmd_timeout, @default_cmd_timeout)
 
-    with {:ok, channel_id} <- ssh().session_channel_open(conn, timeout),
-         :ok <- ssh().exec(conn, channel_id, String.to_charlist(command), timeout) do
-      try do
-        loop(conn, channel_id, on_chunk, %{bytes: 0, exit_code: nil}, timeout, metadata)
-      after
-        ssh().close_channel(conn, channel_id)
+    with {:ok, channel_id} <- ssh().session_channel_open(conn, timeout) do
+      case ssh().exec(conn, channel_id, String.to_charlist(command), timeout) do
+        result when result in [:ok, :success] ->
+          try do
+            loop(conn, channel_id, on_chunk, %{bytes: 0, exit_code: nil}, timeout, metadata)
+          after
+            ssh().close_channel(conn, channel_id)
+          end
+
+        {:error, reason} ->
+          {:error, reason}
+
+        {:failure, reason} ->
+          {:error, reason}
       end
     end
   end

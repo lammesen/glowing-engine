@@ -1,0 +1,42 @@
+defmodule NetAuto.SecretsTest do
+  use ExUnit.Case, async: true
+
+  alias NetAuto.Secrets
+  alias NetAuto.Secrets.Credential
+
+  defmodule StubAdapter do
+    @behaviour NetAuto.Secrets
+
+    @impl true
+    def fetch(_cred_ref, _opts), do: {:ok, %Credential{cred_ref: "TEST", password: "secret"}}
+  end
+
+  setup do
+    original = Application.get_env(:net_auto, NetAuto.Secrets)
+    Application.put_env(:net_auto, NetAuto.Secrets, adapter: StubAdapter)
+
+    on_exit(fn -> Application.put_env(:net_auto, NetAuto.Secrets, original) end)
+  end
+
+  test "fetch/2 delegates to configured adapter" do
+    assert {:ok, %Credential{cred_ref: "TEST", password: "secret"}} = Secrets.fetch("TEST")
+  end
+
+  test "telemetry fires" do
+    :telemetry.attach_many(
+      "secrets-test",
+      [[:net_auto, :secrets, :fetch]],
+      fn event, measurements, metadata, pid ->
+        send(pid, {:telemetry, event, measurements, metadata})
+      end,
+      self()
+    )
+
+    Secrets.fetch("TEST")
+
+    assert_receive {:telemetry, [:net_auto, :secrets, :fetch], %{duration: _},
+                    %{cred_ref: "TEST", result: :ok}}
+
+    :telemetry.detach("secrets-test")
+  end
+end

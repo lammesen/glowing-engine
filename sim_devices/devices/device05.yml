@@ -1,0 +1,11 @@
+hostname: LAB-R5
+site: SITE-C
+mgmt_ip: 10.10.0.5
+commands:
+  show version:
+    - "Cisco IOS Software, {hostname} Software (X86_64_IOSXE), Version 16.12"
+    - "{hostname} uptime is 2 weeks"
+  show ip interface brief:
+    - "Interface              IP-Address      OK? Method Status                Protocol"
+    - "GigabitEthernet0/0    10.10.0.5       YES manual up                    up"
+    - "GigabitEthernet0/1    192.0.2.5       YES manual up                    up"

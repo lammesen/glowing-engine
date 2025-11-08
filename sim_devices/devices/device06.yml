@@ -1,0 +1,9 @@
+hostname: LAB-R6
+site: SITE-C
+mgmt_ip: 10.10.0.6
+commands:
+  show running-config:
+    - "Building configuration..."
+    - "hostname {hostname}"
+    - "interface Loopback0"
+    - " ip address 10.255.1.6 255.255.255.255"

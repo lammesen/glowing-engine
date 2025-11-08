@@ -1,0 +1,7 @@
+hostname: LAB-R7
+site: SITE-D
+mgmt_ip: 10.10.0.7
+commands:
+  show ip interface brief:
+    - "Interface              IP-Address      OK? Method Status                Protocol"
+    - "GigabitEthernet0/0    10.10.0.7       YES manual administratively down down"

@@ -1,0 +1,7 @@
+hostname: LAB-R3
+site: SITE-B
+mgmt_ip: 10.10.0.3
+commands:
+  show inventory:
+    - "NAME: \"Chassis\", DESCR: \"Edge Router\""
+    - "PID: EDGE-RTR, VID: V02, SN: R3SN0003"

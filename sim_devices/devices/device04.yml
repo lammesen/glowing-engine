@@ -1,0 +1,8 @@
+hostname: LAB-R4
+site: SITE-B
+mgmt_ip: 10.10.0.4
+commands:
+  show ip interface brief:
+    - "Interface              IP-Address      OK? Method Status                Protocol"
+    - "GigabitEthernet0/0    10.10.0.4       YES manual down                  down"
+    - "Loopback0             10.255.1.4      YES manual up                    up"

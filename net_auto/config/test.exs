@@ -40,3 +40,8 @@ config :phoenix, :plug_init_mode, :runtime
 # Enable helpful, but potentially expensive runtime checks
 config :phoenix_live_view,
   enable_expensive_runtime_checks: true
+
+config :net_auto, NetAuto.Automation,
+  global_limit: 2,
+  site_limits: %{},
+  default_site_limit: 1

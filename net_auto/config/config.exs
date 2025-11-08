@@ -24,6 +24,11 @@ config :net_auto,
   ecto_repos: [NetAuto.Repo],
   generators: [timestamp_type: :utc_datetime]
 
+config :net_auto, NetAuto.Automation,
+  global_limit: 50,
+  site_limits: %{},
+  default_site_limit: 5
+
 # Configures the endpoint
 config :net_auto, NetAutoWeb.Endpoint,
   url: [host: "localhost"],

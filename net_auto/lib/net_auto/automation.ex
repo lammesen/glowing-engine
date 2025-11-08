@@ -6,7 +6,12 @@ defmodule NetAuto.Automation do
   import Ecto.Query, warn: false
   alias NetAuto.Repo
 
-  alias NetAuto.Automation.{Run, RunChunk}
+  alias NetAuto.Automation.{Run, RunChunk, RunServer, QuotaServer}
+  alias NetAuto.Inventory.Device
+
+  @history_default_limit 25
+  @history_max_limit 100
+  @default_site "default"
 
   def list_runs(opts \\ []) do
     Run |> maybe_preload(opts) |> Repo.all()
@@ -34,6 +39,75 @@ defmodule NetAuto.Automation do
     Run.changeset(run, attrs)
   end
 
+  def execute_run(%Device{} = device, attrs, opts \\ []) when is_map(attrs) do
+    runtime = runtime_options(opts)
+
+    case create_run(build_run_attrs(device, attrs)) do
+      {:ok, run} ->
+        site = site_key(device)
+
+        case checkout_quota(runtime.quota_server, site, run, device) do
+          {:ok, reservation} ->
+            start_run_server(
+              runtime.run_supervisor,
+              run,
+              device,
+              attrs,
+              site,
+              reservation,
+              runtime.quota_server
+            )
+
+          {:error, reason} ->
+            mark_run_error(run, format_quota_reason(reason))
+            {:error, reason}
+        end
+
+      error ->
+        error
+    end
+  end
+
+  def cancel_run(run_id) when is_integer(run_id) do
+    RunServer.cancel(run_id)
+  end
+
+  def paginated_runs_for_device(device_id, params \\ %{}) do
+    filters = normalize_history_params(params)
+    page = max(filters.page, 1)
+    per_page = filters.per_page
+    offset = per_page * (page - 1)
+
+    base_query =
+      Run
+      |> where([r], r.device_id == ^device_id)
+      |> join(:inner, [r], d in assoc(r, :device))
+      |> maybe_filter_statuses(filters.statuses)
+      |> maybe_filter_requested_by(filters.requested_by)
+      |> maybe_filter_query(filters.query)
+      |> maybe_filter_date_range(filters.from, filters.to)
+
+    total = Repo.aggregate(base_query, :count, :id)
+
+    entries =
+      base_query
+      |> order_by([r, _d], desc: fragment("coalesce(?, ?)", r.requested_at, r.inserted_at))
+      |> limit(^per_page)
+      |> offset(^offset)
+      |> preload([_r, d], device: d)
+      |> Repo.all()
+
+    %{entries: entries, total: total, page: page, per_page: per_page}
+  end
+
+  def latest_run_for_device(device_id) do
+    Run
+    |> where([r], r.device_id == ^device_id)
+    |> order_by([r], desc: fragment("coalesce(?, ?)", r.requested_at, r.inserted_at))
+    |> limit(1)
+    |> Repo.one()
+  end
+
   # Run chunks --------------------------------------------------------------
 
   def list_run_chunks(run_id) do
@@ -59,4 +133,265 @@ defmodule NetAuto.Automation do
       preload -> preload(queryable, ^preload)
     end
   end
+
+  defp normalize_history_params(params) do
+    params = Map.new(params, fn {k, v} -> {normalize_history_key(k), v} end)
+
+    %{
+      page: parse_positive_int(Map.get(params, :page), 1),
+      per_page: normalize_per_page(Map.get(params, :per_page)),
+      statuses: normalize_statuses(Map.get(params, :statuses, [])),
+      requested_by: params |> Map.get(:requested_by) |> blank_to_nil() |> maybe_downcase(),
+      query: params |> Map.get(:query) |> blank_to_nil(),
+      from: params |> Map.get(:from) |> parse_datetime(),
+      to: params |> Map.get(:to) |> parse_datetime()
+    }
+  end
+
+  defp normalize_history_key(key) when is_atom(key), do: key
+  defp normalize_history_key("page"), do: :page
+  defp normalize_history_key("per_page"), do: :per_page
+  defp normalize_history_key("statuses"), do: :statuses
+  defp normalize_history_key("requested_by"), do: :requested_by
+  defp normalize_history_key("query"), do: :query
+  defp normalize_history_key("from"), do: :from
+  defp normalize_history_key("to"), do: :to
+  defp normalize_history_key(other), do: other
+
+  defp parse_positive_int(value, _default) when is_integer(value) and value > 0, do: value
+
+  defp parse_positive_int(value, default) when is_binary(value) do
+    case Integer.parse(value) do
+      {int, _} when int > 0 -> int
+      _ -> default
+    end
+  end
+
+  defp parse_positive_int(_value, default), do: default
+
+  defp normalize_per_page(nil), do: @history_default_limit
+
+  defp normalize_per_page(value) do
+    value
+    |> parse_positive_int(@history_default_limit)
+    |> min(@history_max_limit)
+  end
+
+  defp normalize_statuses(value) when is_list(value) do
+    valid = MapSet.new(Ecto.Enum.values(Run, :status))
+
+    value
+    |> Enum.map(&normalize_status/1)
+    |> Enum.filter(&(&1 && MapSet.member?(valid, &1)))
+    |> Enum.uniq()
+  end
+
+  defp normalize_statuses(_), do: []
+
+  defp normalize_status(value) when is_atom(value), do: value
+
+  defp normalize_status(value) when is_binary(value) do
+    trimmed = value |> String.trim() |> String.downcase()
+
+    cond do
+      trimmed == "" ->
+        nil
+
+      true ->
+        try do
+          String.to_existing_atom(trimmed)
+        rescue
+          ArgumentError -> nil
+        end
+    end
+  end
+
+  defp normalize_status(_), do: nil
+
+  defp blank_to_nil(nil), do: nil
+  defp blank_to_nil(""), do: nil
+
+  defp blank_to_nil(value) when is_binary(value) do
+    case String.trim(value) do
+      "" -> nil
+      trimmed -> trimmed
+    end
+  end
+
+  defp blank_to_nil(value), do: value
+
+  defp maybe_downcase(nil), do: nil
+  defp maybe_downcase(value) when is_binary(value), do: String.downcase(value)
+  defp maybe_downcase(value), do: value
+
+  defp parse_datetime(%DateTime{} = dt), do: DateTime.truncate(dt, :second)
+
+  defp parse_datetime(%NaiveDateTime{} = dt) do
+    dt
+    |> NaiveDateTime.truncate(:second)
+    |> DateTime.from_naive!("Etc/UTC")
+  end
+
+  defp parse_datetime(value) when is_binary(value) do
+    trimmed = String.trim(value)
+
+    case DateTime.from_iso8601(trimmed) do
+      {:ok, dt, _offset} -> DateTime.truncate(dt, :second)
+      {:ok, dt} -> DateTime.truncate(dt, :second)
+      {:error, _} -> nil
+    end
+  end
+
+  defp parse_datetime(_value), do: nil
+
+  defp maybe_filter_statuses(query, []), do: query
+
+  defp maybe_filter_statuses(query, statuses) do
+    where(query, [r, _d], r.status in ^statuses)
+  end
+
+  defp maybe_filter_requested_by(query, nil), do: query
+
+  defp maybe_filter_requested_by(query, requested_by) do
+    where(query, [r, _d], fragment("lower(?) = ?", r.requested_by, ^requested_by))
+  end
+
+  defp maybe_filter_query(query, nil), do: query
+
+  defp maybe_filter_query(query, query_string) do
+    trimmed = String.trim(query_string)
+
+    if trimmed == "" do
+      query
+    else
+      pattern = "%#{trimmed}%"
+
+      where(
+        query,
+        [r, d],
+        ilike(r.command, ^pattern) or
+          ilike(d.hostname, ^pattern) or
+          ilike(d.site, ^pattern)
+      )
+    end
+  end
+
+  defp maybe_filter_date_range(query, nil, nil), do: query
+
+  defp maybe_filter_date_range(query, from, to) do
+    cond do
+      from && to ->
+        where(
+          query,
+          [r, _d],
+          fragment("coalesce(?, ?) >= ?", r.requested_at, r.inserted_at, ^from) and
+            fragment("coalesce(?, ?) <= ?", r.requested_at, r.inserted_at, ^to)
+        )
+
+      from ->
+        where(
+          query,
+          [r, _d],
+          fragment("coalesce(?, ?) >= ?", r.requested_at, r.inserted_at, ^from)
+        )
+
+      to ->
+        where(query, [r, _d], fragment("coalesce(?, ?) <= ?", r.requested_at, r.inserted_at, ^to))
+    end
+  end
+
+  defp build_run_attrs(device, attrs) do
+    command =
+      attrs
+      |> Map.get(:command, "")
+      |> to_string()
+      |> String.trim()
+
+    requested_at =
+      attrs
+      |> Map.get(:requested_at)
+      |> case do
+        %DateTime{} = dt -> dt
+        _ -> DateTime.utc_now() |> DateTime.truncate(:second)
+      end
+
+    %{
+      command: command,
+      status: :pending,
+      device_id: device.id,
+      requested_by: Map.get(attrs, :requested_by),
+      requested_at: requested_at,
+      requested_for: Map.get(attrs, :requested_for),
+      command_template_id: Map.get(attrs, :command_template_id)
+    }
+  end
+
+  defp runtime_options(opts) do
+    config = Application.get_env(:net_auto, __MODULE__, [])
+
+    %{
+      quota_server:
+        Keyword.get(opts, :quota_server, Keyword.get(config, :quota_server, QuotaServer)),
+      run_supervisor:
+        Keyword.get(
+          opts,
+          :run_supervisor,
+          Keyword.get(config, :run_supervisor, NetAuto.Automation.RunSupervisor)
+        )
+    }
+  end
+
+  defp checkout_quota(quota_server, site, run, device) do
+    meta = %{run_id: run.id, device_id: device.id}
+    QuotaServer.check_out(quota_server, site, meta)
+  end
+
+  defp start_run_server(run_supervisor, run, device, attrs, site, reservation, quota_server) do
+    adapter = protocols_adapter()
+    adapter_opts = Map.get(attrs, :adapter_opts, %{})
+
+    run_server_opts = [
+      run: run,
+      device: device,
+      adapter: adapter,
+      command: run.command,
+      site: site,
+      reservation: reservation,
+      quota_server: quota_server,
+      adapter_opts: adapter_opts
+    ]
+
+    case DynamicSupervisor.start_child(run_supervisor, {RunServer, run_server_opts}) do
+      {:ok, _pid} ->
+        {:ok, run}
+
+      {:error, reason} = error ->
+        QuotaServer.check_in(quota_server, reservation)
+        mark_run_error(run, format_error(reason))
+        error
+    end
+  end
+
+  defp mark_run_error(run, reason) do
+    update_run(run, %{status: :error, error_reason: reason, finished_at: DateTime.utc_now()})
+  end
+
+  defp site_key(%Device{site: site}) when is_binary(site) and site != "", do: site
+  defp site_key(_), do: @default_site
+
+  defp protocols_adapter do
+    Application.get_env(:net_auto, NetAuto.Protocols, adapter: NetAuto.Protocols.SSHAdapter)
+    |> Keyword.fetch!(:adapter)
+  end
+
+  defp format_quota_reason({:quota_exceeded, :global}), do: "quota_exceeded:global"
+  defp format_quota_reason({:quota_exceeded, {:site, site}}), do: "quota_exceeded:#{site}"
+  defp format_quota_reason(reason), do: inspect(reason)
+
+  defp format_error({:error, reason}), do: format_error(reason)
+  defp format_error({:shutdown, reason}), do: format_error(reason)
+  defp format_error(%{__struct__: _} = reason), do: inspect(reason)
+  defp format_error(reason) when is_binary(reason), do: reason
+  defp format_error(reason) when is_atom(reason), do: Atom.to_string(reason)
+  defp format_error(reason), do: inspect(reason)
 end

@@ -57,6 +57,17 @@ Reload the app (or restart the release) after changing these knobs so Oban picks
 - Observability/PromEx: set `PROMEX_GRAFANA_URL`, `PROMEX_GRAFANA_API_KEY`, and `PROMEX_GRAFANA_FOLDER` to upload the bundled dashboards (`lib/net_auto/prom_ex/dashboards/`). See `docs/observability.md` for how to run Grafana locally and which Telemetry events back the metrics.
 - Add additional docs/tests per workstream requirements in `project.md` and `agents.md`.
 
+## Cisco simulator lab
+
+Use the open-source simulator fleet under `sim_devices/` to test SSH workflows without proprietary images:
+
+1. `bin/launch-cisco-sims.sh` – builds the image and starts 10 containers listening on ports `2201`–`2210` (username/password `netops`).
+2. Export `NET_AUTO_LAB_SIM_USERNAME=netops`, `NET_AUTO_LAB_SIM_PASSWORD=netops`, and `NETAUTO_SIM_CRED_REF=env:LAB_SIM` so `NetAuto.Secrets` knows how to resolve `cred_ref`.
+3. `cd net_auto && mix run priv/repo/seeds.exs` – seeds 10 devices pointing at `127.0.0.1` with the correct SSH ports.
+4. When finished, run `bin/destroy-cisco-sims.sh` to tear everything down.
+
+The CLI responses are defined in `sim_devices/commands/base.yml` plus per-device overrides in `sim_devices/devices/device*.yml`, so you can adjust outputs without rebuilding.
+
 ## Secrets
 
 - Credentials live in environment variables named `NET_AUTO_<CRED_REF>_USERNAME`, `_PASSWORD`, `_PRIVKEY`, `_PRIVKEY_BASE64`, `_PASSPHRASE`.

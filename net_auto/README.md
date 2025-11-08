@@ -9,6 +9,24 @@ To start your Phoenix server:
 
 Ready to run in production? Please [check our deployment guides](https://hexdocs.pm/phoenix/deployment.html).
 
+## Devices & bulk runs
+
+- `/devices` — authenticated LiveView that lists inventory, supports unified search, and opens modals to create/edit devices. Select one or more rows to launch a bulk command; the UI enqueues `NetAuto.Automation.BulkJob` via Oban.
+- `/bulk/:bulk_ref` — progress dashboard that subscribes to `Phoenix.PubSub` topic `bulk:<ref>` and streams per-device status as jobs fan out.
+- `/devices/:id` — run workspace with history filters and streamed chunk output for the selected device.
+
+## Retention controls
+
+The Oban-backed `NetAuto.Automation.RetentionWorker` enforces purge policies configured via env vars (defaults shown):
+
+```bash
+NET_AUTO_RUN_MAX_DAYS=30
+NET_AUTO_RUN_MAX_BYTES=1073741824   # 1 GiB per device
+NET_AUTO_RETENTION_CRON=@daily      # Oban cron expression
+```
+
+`NET_AUTO_RUN_MAX_BYTES` accepts integer byte counts; set to blank or `:infinity` to disable the byte cap.
+
 ## Secrets
 
 - Configure runtime credentials via env vars named `NET_AUTO_<CRED_REF>_USERNAME`, `_PASSWORD`, `_PRIVKEY`, `_PRIVKEY_BASE64`, `_PASSPHRASE`.

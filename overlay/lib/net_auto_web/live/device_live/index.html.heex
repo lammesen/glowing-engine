@@ -1,0 +1,23 @@
+<h2 class="text-xl font-semibold mb-4">Devices</h2>
+<.card variant="shadow" padding="medium">
+  <.table variant="outline" color="white">
+    <:head>
+      <tr>
+        <th class="text-left">Hostname</th>
+        <th class="text-left">IP</th>
+        <th class="text-left">Protocol</th>
+        <th class="text-left">Actions</th>
+      </tr>
+    </:head>
+    <:body>
+      <%= for d <- @devices do %>
+        <tr id={"d-#{d.id}"}>
+          <td><%= d.hostname %></td>
+          <td><%= d.ip %></td>
+          <td><%= d.protocol %></td>
+          <td><.link navigate={~p"/devices/#{d.id}"} class="underline">Open</.link></td>
+        </tr>
+      <% end %>
+    </:body>
+  </.table>
+</.card>

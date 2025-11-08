@@ -20,6 +20,45 @@ if System.get_env("PHX_SERVER") do
   config :net_auto, NetAutoWeb.Endpoint, server: true
 end
 
+grafana_host = System.get_env("PROMEX_GRAFANA_URL")
+grafana_token = System.get_env("PROMEX_GRAFANA_API_KEY")
+grafana_folder = System.get_env("PROMEX_GRAFANA_FOLDER") || "NetAuto"
+
+parse_positive_integer = fn
+  nil, default -> default
+  value, default ->
+    case Integer.parse(value) do
+      {int, _} when int > 0 -> int
+      _ -> default
+    end
+end
+
+retention_cron = System.get_env("NET_AUTO_RETENTION_CRON") || "@daily"
+max_age_days = parse_positive_integer.(System.get_env("NET_AUTO_RUN_MAX_DAYS"), 30)
+max_total_bytes = parse_positive_integer.(System.get_env("NET_AUTO_RUN_MAX_BYTES"), 1_073_741_824)
+
+config :net_auto, NetAuto.Automation.Retention,
+  max_age_days: max_age_days,
+  max_total_bytes: max_total_bytes
+
+config :net_auto, Oban,
+  repo: NetAuto.Repo,
+  queues: [default: 10, retention: 5, bulk: 5],
+  plugins: [
+    {Oban.Plugins.Cron, crontab: [{retention_cron, NetAuto.Automation.RetentionWorker}]}
+  ]
+
+if grafana_host && grafana_token do
+  config :net_auto, NetAuto.PromEx,
+    grafana: [
+      host: grafana_host,
+      auth_token: grafana_token,
+      upload_dashboards_on_start: true,
+      folder_name: grafana_folder
+    ],
+    manual_metrics_start_delay: :timer.seconds(10)
+end
+
 if config_env() == :prod do
   database_url =
     System.get_env("DATABASE_URL") ||

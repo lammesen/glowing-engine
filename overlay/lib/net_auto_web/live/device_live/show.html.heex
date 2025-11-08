@@ -1,0 +1,33 @@
+<h2 class="text-xl font-semibold mb-2">
+  Device: <%= @device.hostname %> (<%= @device.ip %>)
+</h2>
+
+<%= if live_flash(@flash, :info) do %>
+  <.alert variant="default" kind={:success}><%= live_flash(@flash, :info) %></.alert>
+<% end %>
+<%= if live_flash(@flash, :error) do %>
+  <.alert variant="default" kind={:danger}><%= live_flash(@flash, :error) %></.alert>
+<% end %>
+
+<.card variant="outline" padding="medium" class="mb-4">
+  <form phx-submit="run" phx-change="change_cmd" class="space-y-3">
+    <.textarea_field
+      name="command"
+      value={@command}
+      label="Ad‑hoc command"
+      rows="4"
+      ring
+      floating="label"
+    />
+    <button type="submit" class="px-3 py-2 rounded bg-blue-600 text-white">Run</button>
+  </form>
+</.card>
+
+<.card variant="shadow" padding="medium">
+  <h3 class="font-semibold mb-2">Output</h3>
+  <div id="output" phx-update="stream" class="font-mono bg-black text-white p-3 h-96 overflow-auto rounded">
+    <%= for line <- @streams.output do %>
+      <pre id={"o-" <> to_string(line.id)}><%= line.line %></pre>
+    <% end %>
+  </div>
+</.card>

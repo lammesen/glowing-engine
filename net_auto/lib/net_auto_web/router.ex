@@ -21,6 +21,12 @@ defmodule NetAutoWeb.Router do
     pipe_through [:browser, :require_authenticated_user]
 
     get "/", PageController, :home
+    live "/devices", DeviceLive.Index, :index
+    live "/devices/new", DeviceLive.Index, :new
+    live "/devices/bulk", DeviceLive.Index, :bulk
+    live "/devices/:device_id/edit", DeviceLive.Index, :edit
+    live "/bulk/:bulk_ref", BulkLive.Show
+    live "/devices/:device_id", RunLive
   end
 
   # Other scopes may use custom stacks.

@@ -5,7 +5,7 @@
 - `NetAuto.Application` starts Oban via `{Oban, Application.fetch_env!(:net_auto, Oban)}` before Repo-dependent workers. Telemetry attaches in `NetAutoWeb.Telemetry` for visibility.
 
 ## 2. Retention Worker
-- Config knobs (documented in README/plan):
+- Config knobs (documented in README/plan) sourced from env vars `NET_AUTO_RUN_MAX_DAYS`, `NET_AUTO_RUN_MAX_BYTES`, `NET_AUTO_RETENTION_CRON`:
   ```elixir
   config :net_auto, NetAuto.Automation.Retention,
     max_age_days: {:system, "NET_AUTO_RUN_MAX_DAYS", 30},
@@ -23,9 +23,9 @@
 - Worker loops device IDs, calling `Network.execute_command/3` with `requested_by` metadata. Errors per device are logged and reported via telemetry (`[:net_auto, :bulk, status]`).
 - Existing WS07/WS08 LiveViews expose a new “Run command on selected devices” UI:
   - Devices index gains multi-select (checkbox per row) plus a Chelekom modal to enter the command.
-  - On submit, LiveView calls `NetAuto.Automation.Bulk.enqueue/3` and surfaces job ID/toast.
-  - Run show LiveView subscribes to a new `"bulk:#{job_id}"` PubSub topic (published when each device run finishes) to show progress.
-- This keeps UI optional yet immediately useful since WS07/08 are already present.
+  - On submit, LiveView calls `NetAuto.Automation.Bulk.enqueue/3`, flashes success, and navigates to `/bulk/<ref>`.
+- `/bulk/:bulk_ref` mounts `NetAutoWeb.BulkLive.Show`, which subscribes to `"bulk:<ref>"` and streams `{:bulk_progress, ...}` / `{:bulk_summary, ...}` messages so operators can watch fan-out in real time.
+- Run workspace remains focused on per-device execution; bulk dashboards stay optional yet immediately useful since WS07/WS08 are already present.
 
 ## 4. Testing & Docs
 - Add DataCase tests for `RetentionWorker` (seed runs/chunks, run worker, assert deletions) using `Oban.Testing`. Bulk job tests validate chunking + `Network.execute_command/3` invocation (use Mox for `NetAuto.Network.Client`).

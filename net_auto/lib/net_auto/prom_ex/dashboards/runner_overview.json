@@ -1,0 +1,80 @@
+{
+  "uid": "runner-overview",
+  "title": "Runner Overview",
+  "schemaVersion": 39,
+  "version": 1,
+  "timezone": "browser",
+  "refresh": "30s",
+  "tags": ["net_auto", "runner"],
+  "time": {"from": "now-6h", "to": "now"},
+  "templating": {"list": []},
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Runs started (5m)",
+      "id": 1,
+      "datasource": {"type": "prometheus", "uid": "$PROMETHEUS_DS"},
+      "targets": [
+        {
+          "expr": "sum(increase(net_auto_runner_start_total[5m]))",
+          "legendFormat": "starts",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{"color": "green", "value": null}, {"color": "red", "value": 100}]
+          }
+        },
+        "overrides": []
+      },
+      "options": {"reduceOptions": {"calcs": ["sum"], "fields": "", "values": false}}
+    },
+    {
+      "type": "timeseries",
+      "title": "Runner duration p95", "id": 2,
+      "datasource": {"type": "prometheus", "uid": "$PROMETHEUS_DS"},
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(net_auto_runner_duration_milliseconds_bucket[5m])) by (le))",
+          "legendFormat": "p95 duration",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 2000}]}
+        },
+        "overrides": []
+      },
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}}
+    },
+    {
+      "type": "stat",
+      "title": "Runner errors (5m)",
+      "id": 3,
+      "datasource": {"type": "prometheus", "uid": "$PROMETHEUS_DS"},
+      "targets": [
+        {
+          "expr": "sum(increase(net_auto_runner_error_total[5m]))",
+          "legendFormat": "errors",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{"color": "green", "value": null}, {"color": "orange", "value": 1}, {"color": "red", "value": 5}]
+          }
+        }
+      },
+      "options": {"reduceOptions": {"calcs": ["sum"], "fields": "", "values": false}}
+    }
+  ]
+}

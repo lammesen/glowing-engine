@@ -10,6 +10,8 @@ defmodule NetAuto.Automation.RunSupervisorTest do
       DynamicSupervisor.start_child(__MODULE__, {Task, fn -> :ok end})
 
     assert is_pid(pid)
+    ref = Process.monitor(pid)
+    assert_receive {:DOWN, ^ref, :process, ^pid, _reason}
     refute Process.alive?(pid)
   end
 end

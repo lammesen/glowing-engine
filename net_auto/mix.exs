@@ -21,7 +21,7 @@ defmodule NetAuto.MixProject do
   def application do
     [
       mod: {NetAuto.Application, []},
-      extra_applications: [:logger, :runtime_tools, :ssl, :ssh]
+      extra_applications: [:logger, :runtime_tools, :ssl, :ssh, :oban]
     ]
   end
 
@@ -70,7 +70,7 @@ defmodule NetAuto.MixProject do
       {:bandit, "~> 1.5"},
       {:argon2_elixir, "~> 4.0"},
       {:oban, "~> 2.17"},
-      {:prom_ex, "~> 1.10", only: [:dev, :prod]},
+      {:prom_ex, "~> 1.10"},
       {:mishka_chelekom, "~> 0.0.8", only: :dev},
       {:mox, "~> 1.1", only: :test}
     ]

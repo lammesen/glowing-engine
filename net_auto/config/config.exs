@@ -41,6 +41,13 @@ config :net_auto, NetAuto.Automation,
   site_limits: %{},
   default_site_limit: 5
 
+config :net_auto, Oban,
+  repo: NetAuto.Repo,
+  queues: [default: 10, retention: 5, bulk: 5],
+  plugins: [
+    {Oban.Plugins.Cron, crontab: [{"@daily", NetAuto.Automation.RetentionWorker}]}
+  ]
+
 # Configures the endpoint
 config :net_auto, NetAutoWeb.Endpoint,
   url: [host: "localhost"],

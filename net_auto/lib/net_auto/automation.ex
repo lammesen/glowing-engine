@@ -4,14 +4,18 @@ defmodule NetAuto.Automation do
   """
 
   import Ecto.Query, warn: false
+  alias Ecto.UUID
   alias NetAuto.Repo
+  alias Oban
 
-  alias NetAuto.Automation.{Run, RunChunk, RunServer, QuotaServer}
+  alias NetAuto.Automation.{BulkJob, Run, RunChunk, RunServer, QuotaServer}
   alias NetAuto.Inventory.Device
 
+  @retention_defaults %{max_age_days: 30, max_total_bytes: :infinity}
   @history_default_limit 25
   @history_max_limit 100
   @default_site "default"
+  @bulk_chunk_size 50
 
   def list_runs(opts \\ []) do
     Run |> maybe_preload(opts) |> Repo.all()
@@ -25,6 +29,7 @@ defmodule NetAuto.Automation do
     %Run{}
     |> Run.changeset(attrs)
     |> Repo.insert()
+    |> maybe_emit_run_created()
   end
 
   def update_run(%Run{} = run, attrs) do
@@ -37,6 +42,17 @@ defmodule NetAuto.Automation do
 
   def change_run(%Run{} = run, attrs \\ %{}) do
     Run.changeset(run, attrs)
+  end
+
+  @doc """
+  Returns the effective retention configuration merged with defaults.
+  """
+  def retention_config do
+    configured = Application.get_env(:net_auto, __MODULE__.Retention, %{})
+
+    defaults()
+    |> Map.merge(configured)
+    |> normalize_retention_config()
   end
 
   def execute_run(%Device{} = device, attrs, opts \\ []) when is_map(attrs) do
@@ -70,6 +86,34 @@ defmodule NetAuto.Automation do
 
   def cancel_run(run_id) when is_integer(run_id) do
     RunServer.cancel(run_id)
+  end
+
+  def bulk_enqueue(command, device_ids, opts \\ []) do
+    with {:ok, normalized_command} <- normalize_bulk_command(command),
+         {:ok, ids} <- normalize_device_ids(device_ids) do
+      chunk_size =
+        opts
+        |> Keyword.get(:chunk_size, @bulk_chunk_size)
+        |> normalize_chunk_size()
+
+      bulk_ref = Keyword.get(opts, :bulk_ref, UUID.generate())
+      requested_by = Keyword.get(opts, :requested_by)
+
+      jobs =
+        ids
+        |> Enum.chunk_every(chunk_size)
+        |> Enum.map(fn chunk_ids ->
+          %{
+            "command" => normalized_command,
+            "device_ids" => chunk_ids,
+            "bulk_ref" => bulk_ref
+          }
+          |> maybe_put_requested_by(requested_by)
+          |> BulkJob.new()
+        end)
+
+      insert_bulk_jobs(jobs, bulk_ref)
+    end
   end
 
   def paginated_runs_for_device(device_id, params \\ %{}) do
@@ -121,6 +165,7 @@ defmodule NetAuto.Automation do
     %RunChunk{}
     |> RunChunk.changeset(attrs)
     |> Repo.insert()
+    |> maybe_emit_chunk_appended()
   end
 
   def change_run_chunk(%RunChunk{} = chunk, attrs \\ %{}) do
@@ -383,6 +428,141 @@ defmodule NetAuto.Automation do
     Application.get_env(:net_auto, NetAuto.Protocols, adapter: NetAuto.Protocols.SSHAdapter)
     |> Keyword.fetch!(:adapter)
   end
+
+  defp maybe_emit_run_created({:ok, run} = result) do
+    :telemetry.execute([:net_auto, :run, :created], %{count: 1}, run_created_metadata(run))
+    result
+  end
+
+  defp maybe_emit_run_created(result), do: result
+
+  defp run_created_metadata(run) do
+    %{
+      run_id: run.id,
+      device_id: run.device_id,
+      requested_by: run.requested_by,
+      site: associated_device_field(run, :site),
+      protocol: associated_device_field(run, :protocol),
+      status: run.status
+    }
+  end
+
+  defp associated_device_field(run, field) do
+    case Map.get(run, :device) do
+      %Device{} = device -> Map.get(device, field)
+      _ -> nil
+    end
+  end
+
+  defp maybe_emit_chunk_appended({:ok, chunk} = result) do
+    measurements = %{count: 1, bytes: chunk_data_size(chunk)}
+    metadata = %{run_id: chunk.run_id, seq: chunk.seq}
+    :telemetry.execute([:net_auto, :run, :chunk_appended], measurements, metadata)
+    result
+  end
+
+  defp maybe_emit_chunk_appended(result), do: result
+
+  defp chunk_data_size(%RunChunk{data: data}) when is_binary(data), do: byte_size(data)
+  defp chunk_data_size(_), do: 0
+
+  defp insert_bulk_jobs([], _bulk_ref), do: {:error, :no_devices}
+
+  defp insert_bulk_jobs(jobs, bulk_ref) do
+    case Oban.insert_all(jobs) do
+      {:ok, inserted} -> {:ok, %{bulk_ref: bulk_ref, jobs: inserted}}
+      {:error, reason} -> {:error, reason}
+      inserted when is_list(inserted) -> {:ok, %{bulk_ref: bulk_ref, jobs: inserted}}
+    end
+  end
+
+  defp maybe_put_requested_by(args, nil), do: args
+  defp maybe_put_requested_by(args, requested_by), do: Map.put(args, "requested_by", requested_by)
+
+  defp defaults, do: @retention_defaults
+
+  defp normalize_retention_config(config) do
+    %{
+      max_age_days:
+        config
+        |> Map.get(:max_age_days, defaults().max_age_days)
+        |> normalize_positive_integer(defaults().max_age_days),
+      max_total_bytes:
+        config
+        |> Map.get(:max_total_bytes, defaults().max_total_bytes)
+        |> normalize_max_total_bytes()
+    }
+  end
+
+  defp normalize_positive_integer(value, _default)
+       when is_integer(value) and value > 0,
+       do: value
+
+  defp normalize_positive_integer(value, default) when is_binary(value) do
+    case Integer.parse(value) do
+      {int, _} when int > 0 -> int
+      _ -> default
+    end
+  end
+
+  defp normalize_positive_integer(_value, default), do: default
+
+  defp normalize_max_total_bytes(value) when value in [nil, :infinity], do: :infinity
+
+  defp normalize_max_total_bytes(value) when is_integer(value) and value > 0, do: value
+
+  defp normalize_max_total_bytes(value) when is_binary(value) do
+    case Integer.parse(value) do
+      {int, _} when int > 0 -> int
+      _ -> defaults().max_total_bytes
+    end
+  end
+
+  defp normalize_max_total_bytes(_value), do: defaults().max_total_bytes
+
+  defp normalize_bulk_command(command) when is_binary(command) do
+    trimmed = command |> String.trim()
+
+    if trimmed == "" do
+      {:error, :invalid_command}
+    else
+      {:ok, trimmed}
+    end
+  end
+
+  defp normalize_bulk_command(_), do: {:error, :invalid_command}
+
+  defp normalize_device_ids(ids) when is_list(ids) do
+    normalized =
+      ids
+      |> Enum.map(&normalize_device_id/1)
+      |> Enum.reject(&is_nil/1)
+      |> Enum.uniq()
+
+    if normalized == [] do
+      {:error, :no_devices}
+    else
+      {:ok, normalized}
+    end
+  end
+
+  defp normalize_device_ids(_), do: {:error, :invalid_devices}
+
+  defp normalize_device_id(%Device{id: id}), do: normalize_device_id(id)
+
+  defp normalize_device_id(id) when is_integer(id) and id > 0, do: id
+
+  defp normalize_device_id(id) when is_binary(id) do
+    case Integer.parse(id) do
+      {int, _} when int > 0 -> int
+      _ -> nil
+    end
+  end
+
+  defp normalize_device_id(_), do: nil
+
+  defp normalize_chunk_size(value) when is_integer(value) and value > 0, do: value
+  defp normalize_chunk_size(_), do: @bulk_chunk_size
 
   defp format_quota_reason({:quota_exceeded, :global}), do: "quota_exceeded:global"
   defp format_quota_reason({:quota_exceeded, {:site, site}}), do: "quota_exceeded:#{site}"

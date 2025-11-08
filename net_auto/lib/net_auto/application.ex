@@ -7,15 +7,19 @@ defmodule NetAuto.Application do
 
   @impl true
   def start(_type, _args) do
+    oban_config = Application.fetch_env!(:net_auto, Oban)
+
     children = [
       NetAutoWeb.Telemetry,
       NetAuto.Repo,
+      {Oban, oban_config},
       {DNSCluster, query: Application.get_env(:net_auto, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: NetAuto.PubSub},
       {Registry, keys: :unique, name: NetAuto.Automation.Registry},
       NetAuto.Automation.QuotaServer,
       NetAuto.Automation.RunSupervisor,
-      NetAutoWeb.Endpoint
+      NetAutoWeb.Endpoint,
+      NetAuto.PromEx
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html

@@ -3,6 +3,7 @@ defmodule NetAutoWeb.Telemetry do
   import Telemetry.Metrics
 
   def start_link(arg) do
+    :ok = Oban.Telemetry.attach_default_logger()
     Supervisor.start_link(__MODULE__, arg, name: __MODULE__)
   end
 

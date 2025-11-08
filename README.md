@@ -9,6 +9,12 @@ This repo hosts the Network Automation Platform reboot (Phoenix + LiveView + Mis
 3. Ensure Postgres is running locally and create the DB: `mix setup`.
 4. Start the server: `mix phx.server` (HTTP `localhost:4000`, HTTPS `https://localhost:4001`).
 5. Visit `https://localhost:4001/users/register` to create the first account, then you’ll land on the auth-guarded home page.
+6. Open [`https://localhost:4001/devices`](https://localhost:4001/devices) to browse inventory, launch commands, and start bulk runs; monitor fan-out progress in real time at `/bulk/<ref>` once a job is enqueued.
+
+### Manually capturing UI screenshots
+1. Run `mix phx.server` in `net_auto/` so HTTPS endpoints are available.
+2. Sign in and visit `/devices`; select a few rows and open the bulk modal so both the table and dialog are visible. Use your OS shortcut (`⌘⇧4` on macOS, `Win+Shift+S` on Windows, `Shift+PrintScreen` on GNOME) to grab the screenshot.
+3. Kick off a bulk run to land on `/bulk/<ref>` and capture the progress dashboard the same way. Save the images under `docs/screenshots/` (gitignored) and attach them to PRs/issues as needed.
 
 *Need certificates?* Run `mix phx.gen.cert` inside `net_auto/` to refresh `priv/cert/*.pem` (ignored by git).
 
@@ -20,10 +26,23 @@ This repo hosts the Network Automation Platform reboot (Phoenix + LiveView + Mis
 - **WS07/WS08** can replace the placeholder dashboard (`/`) with Devices/Run LiveViews; routes already require authenticated users.
 - **WS08 preview:** create a device record, then visit `/devices/:id` to filter run history, submit commands, and stream chunk output live while the runner broadcasts to `"run:<run_id>"`.
 
+## Retention & bulk configuration
+
+Configure purge cadence and fan-out defaults via env vars (already read in `config/runtime.exs`):
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `NET_AUTO_RUN_MAX_DAYS` | `30` | Maximum age (in days) before runs/chunks are purged |
+| `NET_AUTO_RUN_MAX_BYTES` | `1073741824` | Per-device byte ceiling; oldest runs trimmed once exceeded |
+| `NET_AUTO_RETENTION_CRON` | `@daily` | Cron string used by Oban to schedule the retention worker |
+
+Reload the app (or restart the release) after changing these knobs so Oban picks up the new schedule.
+
 ## Next steps
 
 - Start Postgres before running `mix ecto.create`/`mix test`; the sandbox uses env vars defined above.
-- To try the run workspace, set `NET_AUTO_<CRED_REF>_*` vars, create a device via `NetAuto.Inventory.create_device/1`, and call `NetAuto.Network.execute_command/3` (or use the `/devices/:id` form) to watch the output stream.
+- To try the run workspace, set `NET_AUTO_<CRED_REF>_*` vars, create a device via `/devices`, then run commands either from the Devices table (bulk) or the device detail page (`/devices/:id`) to watch streamed output.
+- Observability/PromEx: set `PROMEX_GRAFANA_URL`, `PROMEX_GRAFANA_API_KEY`, and `PROMEX_GRAFANA_FOLDER` to upload the bundled dashboards (`lib/net_auto/prom_ex/dashboards/`). See `docs/observability.md` for how to run Grafana locally and which Telemetry events back the metrics.
 - Add additional docs/tests per workstream requirements in `project.md` and `agents.md`.
 
 ## Secrets

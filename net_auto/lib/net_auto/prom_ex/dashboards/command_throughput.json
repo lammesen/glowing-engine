@@ -1,0 +1,38 @@
+{
+  "uid": "command-throughput",
+  "title": "Command Throughput",
+  "schemaVersion": 39,
+  "version": 1,
+  "timezone": "browser",
+  "refresh": "30s",
+  "tags": ["net_auto", "throughput"],
+  "time": {"from": "now-12h", "to": "now"},
+  "templating": {"list": []},
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Runs created per site", "id": 1,
+      "datasource": {"type": "prometheus", "uid": "$PROMETHEUS_DS"},
+      "targets": [
+        {
+          "expr": "sum(rate(net_auto_run_created_total[1m])) by (site)",
+          "legendFormat": "site {{site}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Chunk bytes per minute", "id": 2,
+      "datasource": {"type": "prometheus", "uid": "$PROMETHEUS_DS"},
+      "targets": [
+        {
+          "expr": "sum(rate(net_auto_run_chunk_bytes_total[1m])) by (run_id)",
+          "legendFormat": "run {{run_id}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {"defaults": {"unit": "bytes"}}
+    }
+  ]
+}

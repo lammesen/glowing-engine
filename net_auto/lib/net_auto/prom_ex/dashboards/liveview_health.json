@@ -1,0 +1,47 @@
+{
+  "uid": "liveview-health",
+  "title": "LiveView Health",
+  "schemaVersion": 39,
+  "version": 1,
+  "timezone": "browser",
+  "refresh": "30s",
+  "tags": ["net_auto", "liveview"],
+  "time": {"from": "now-6h", "to": "now"},
+  "templating": {"list": []},
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "RunLive mount duration", "id": 1,
+      "datasource": {"type": "prometheus", "uid": "$PROMETHEUS_DS"},
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(net_auto_liveview_mount_duration_milliseconds_bucket[5m])) by (le))",
+          "legendFormat": "p95 mount",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {"unit": "ms"},
+        "overrides": []
+      },
+      "options": {"legend": {"displayMode": "table", "placement": "bottom"}}
+    },
+    {
+      "type": "timeseries",
+      "title": "Commands submitted", "id": 2,
+      "datasource": {"type": "prometheus", "uid": "$PROMETHEUS_DS"},
+      "targets": [
+        {
+          "expr": "sum(rate(net_auto_liveview_command_submitted_total[1m])) by (device_id)",
+          "legendFormat": "device {{device_id}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {"unit": "ops"},
+        "overrides": []
+      },
+      "options": {"legend": {"displayMode": "list", "placement": "right"}}
+    }
+  ]
+}

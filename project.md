@@ -76,6 +76,8 @@ NetAuto.Application
 | WS09 | Observability | `/lib/*` `/config` | PromEx dashboards/metrics; Telemetry events wired |
 | WS10 | Bulk & retention (optional) | `/lib/*` `/priv/repo` | Oban worker for purge; (optional) fan‑out bulk runner |
 
+**Status snapshot:** `/devices` (WS07) and `/devices/:id` (WS08) are live with Chelekom tables/forms plus streamed output; WS10’s bulk fan-out + `/bulk/:ref` progress view and retention knobs are wired behind Oban.
+
 **Avoid collisions**
 - WS06 only touches components/assets; WS07/WS08 only touch LiveViews/pages.
 - WS02 owns migrations; WS05/WS08 can depend on WS02’s schema modules without editing migrations.
@@ -174,7 +176,7 @@ Implement `NetAuto.Protocols.Adapter` behavior and `SSHAdapter.run/4` using `:ss
 ### 4.9 Observability & retention
 - Emit Telemetry: `net_auto.run.start|stop|error` with device_id/run_id/bytes/durations. See `docs/telemetry.md` for the SSH adapter + run server event list.
 - PromEx dashboards (optional).
-- Oban worker to purge old runs/chunks by age/size.
+- Oban worker to purge old runs/chunks by age/size (configure with `NET_AUTO_RUN_MAX_DAYS`, `NET_AUTO_RUN_MAX_BYTES`, `NET_AUTO_RETENTION_CRON`).
 
 ---
 

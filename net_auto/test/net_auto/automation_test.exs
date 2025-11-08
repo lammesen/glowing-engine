@@ -4,6 +4,8 @@ defmodule NetAuto.AutomationTest do
   alias NetAuto.Automation
   alias NetAuto.AutomationFixtures
   alias NetAuto.InventoryFixtures
+  alias NetAuto.Repo
+  alias Oban.Job
   import Mox
 
   setup_all do
@@ -139,6 +141,65 @@ defmodule NetAuto.AutomationTest do
     end
   end
 
+  describe "retention_config/0" do
+    setup do
+      original = Application.get_env(:net_auto, NetAuto.Automation.Retention)
+
+      on_exit(fn ->
+        Application.put_env(:net_auto, NetAuto.Automation.Retention, original)
+      end)
+
+      :ok
+    end
+
+    test "returns defaults when no config set" do
+      Application.put_env(:net_auto, NetAuto.Automation.Retention, %{})
+      assert %{max_age_days: 30, max_total_bytes: :infinity} = Automation.retention_config()
+    end
+
+    test "normalizes configured values" do
+      Application.put_env(:net_auto, NetAuto.Automation.Retention, %{
+        max_age_days: "10",
+        max_total_bytes: "2048"
+      })
+
+      assert %{max_age_days: 10, max_total_bytes: 2048} = Automation.retention_config()
+    end
+  end
+
+  describe "bulk_enqueue/3" do
+    setup do
+      Repo.delete_all(Job)
+      :ok
+    end
+
+    test "validates command presence" do
+      assert {:error, :invalid_command} = Automation.bulk_enqueue("  ", [1])
+    end
+
+    test "validates device ids" do
+      assert {:error, :no_devices} = Automation.bulk_enqueue("show version", [])
+      assert {:error, :invalid_devices} = Automation.bulk_enqueue("show version", "not a list")
+    end
+
+    test "chunks enqueued jobs and returns bulk ref" do
+      device_ids =
+        Enum.map(1..55, fn _ -> InventoryFixtures.device_fixture().id end)
+
+      assert {:ok, %{bulk_ref: bulk_ref, jobs: jobs}} =
+               Automation.bulk_enqueue("show version", device_ids, requested_by: "ops")
+
+      assert length(jobs) == 2
+
+      Enum.each(jobs, fn job ->
+        assert job.args["bulk_ref"] == bulk_ref
+        assert job.args["requested_by"] == "ops"
+      end)
+
+      assert Repo.aggregate(Job, :count, :id) == 2
+    end
+  end
+
   describe "execute_run/2" do
     setup do
       Application.put_env(:net_auto, NetAuto.Protocols, adapter: NetAuto.ProtocolsAdapterMock)
@@ -221,6 +282,56 @@ defmodule NetAuto.AutomationTest do
 
       {:error, {:already_started, _pid}} ->
         :ok
+    end
+  end
+
+  describe "telemetry" do
+    test "emits event on run creation" do
+      event = [:net_auto, :run, :created]
+      handler_id = "automation-run-created-#{System.unique_integer()}"
+
+      :telemetry.attach(
+        handler_id,
+        event,
+        fn ^event, measurements, metadata, _config ->
+          send(self(), {:telemetry_event, event, measurements, metadata})
+        end,
+        nil
+      )
+
+      on_exit(fn -> :telemetry.detach(handler_id) end)
+
+      run = AutomationFixtures.run_fixture()
+      run_id = run.id
+
+      assert_receive {:telemetry_event, ^event, %{count: 1}, %{run_id: ^run_id}}
+    end
+
+    test "emits event when chunks appended" do
+      run = AutomationFixtures.run_fixture()
+      event = [:net_auto, :run, :chunk_appended]
+      handler_id = "automation-chunk-appended-#{System.unique_integer()}"
+
+      :telemetry.attach(
+        handler_id,
+        event,
+        fn ^event, measurements, metadata, _ ->
+          send(self(), {:telemetry_event, event, measurements, metadata})
+        end,
+        nil
+      )
+
+      on_exit(fn -> :telemetry.detach(handler_id) end)
+
+      {:ok, _chunk} = Automation.append_chunk(%{run_id: run.id, seq: 0, data: "data"})
+      run_id = run.id
+
+      assert_receive {
+        :telemetry_event,
+        ^event,
+        %{count: 1, bytes: 4},
+        %{run_id: ^run_id, seq: 0}
+      }
     end
   end
 end

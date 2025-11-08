@@ -3,7 +3,7 @@
   <header class="flex flex-col gap-2">
     <p class="text-sm font-semibold tracking-wide text-primary">Network Automation Platform</p>
     <h1 class="text-3xl font-bold">
-      Welcome back<%= if @user, do: ", #{@user.email}" %>
+      Welcome back{if @user, do: ", #{@user.email}"}
     </h1>
     <p class="text-base text-base-content/80">
       Authentication is wired up and all routes are guarded. Use the navigation links above to access
@@ -17,12 +17,16 @@
       <h2 class="text-lg font-semibold">Environment checklist</h2>
       <ul class="mt-3 list-disc space-y-2 pl-5 text-sm">
         <li>
-          <code>mix deps.get</code>, <code>mix ecto.setup</code>, <code>mix phx.server</code> (HTTPS on 4001) run
+          <code>mix deps.get</code>, <code>mix ecto.setup</code>, <code>mix phx.server</code>
+          (HTTPS on 4001) run
           inside <code>net_auto/</code>.
         </li>
         <li>
-          Set <code>PGUSER</code>, <code>PGPASSWORD</code>, <code>PGHOST</code>, and <code>PGDATABASE</code> or create
-          a <code>.env</code> from <code>.env.sample</code>.
+          Set <code>PGUSER</code>, <code>PGPASSWORD</code>, <code>PGHOST</code>, and
+          <code>PGDATABASE</code>
+          or create
+          a <code>.env</code>
+          from <code>.env.sample</code>.
         </li>
         <li>Secrets live in env vars only; DB rows store `cred_ref` and metadata.</li>
       </ul>

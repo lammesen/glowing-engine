@@ -12,6 +12,7 @@ defmodule NetAuto.Application do
       NetAuto.Repo,
       {DNSCluster, query: Application.get_env(:net_auto, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: NetAuto.PubSub},
+      {Registry, keys: :unique, name: NetAuto.Automation.Registry},
       NetAuto.Automation.QuotaServer,
       NetAuto.Automation.RunSupervisor,
       NetAutoWeb.Endpoint

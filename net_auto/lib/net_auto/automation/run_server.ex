@@ -35,7 +35,14 @@ defmodule NetAuto.Automation.RunServer do
   end
 
   def start_link(opts) do
-    GenServer.start_link(__MODULE__, opts)
+    GenServer.start_link(__MODULE__, opts, name: via_run(opts))
+  end
+
+  def cancel(run_id) do
+    case Registry.lookup(NetAuto.Automation.Registry, run_id) do
+      [{pid, _}] -> GenServer.cast(pid, :cancel)
+      [] -> {:error, :not_found}
+    end
   end
 
   @impl true
@@ -48,12 +55,20 @@ defmodule NetAuto.Automation.RunServer do
     site = Keyword.get(opts, :site, device.site)
     reservation = Keyword.get(opts, :reservation)
     quota_server = Keyword.get(opts, :quota_server, @default_quota_server)
+    started_at = DateTime.utc_now()
+    started_monotonic = System.monotonic_time(:millisecond)
 
     {:ok, run} =
       Automation.update_run(run, %{
         status: :running,
-        started_at: DateTime.utc_now()
+        started_at: started_at
       })
+
+    emit_telemetry(:start, %{system_time: System.system_time()}, %{
+      run_id: run.id,
+      device_id: device.id,
+      site: site
+    })
 
     parent = self()
 
@@ -79,7 +94,9 @@ defmodule NetAuto.Automation.RunServer do
       site: site,
       seq: 0,
       bytes: 0,
-      finished: false
+      finished: false,
+      canceled?: false,
+      started_monotonic: started_monotonic
     }
 
     {:ok, state}
@@ -89,11 +106,20 @@ defmodule NetAuto.Automation.RunServer do
   def handle_info({:adapter_chunk, data}, state) do
     case Automation.append_chunk(%{run_id: state.run.id, seq: state.seq, data: data}) do
       {:ok, _chunk} ->
+        chunk_bytes = byte_size(data)
+
         new_state = %{
           state
           | seq: state.seq + 1,
-            bytes: state.bytes + byte_size(data)
+            bytes: state.bytes + chunk_bytes
         }
+
+        emit_telemetry(:chunk, %{bytes: chunk_bytes}, %{
+          run_id: state.run.id,
+          device_id: state.device.id,
+          seq: state.seq,
+          site: state.site
+        })
 
         {:noreply, new_state}
 
@@ -115,6 +141,12 @@ defmodule NetAuto.Automation.RunServer do
 
   def handle_info(_msg, state), do: {:noreply, state}
 
+  @impl true
+  def handle_cast(:cancel, state) do
+    state = shutdown_adapter(state)
+    finish({:error, :canceled}, %{state | canceled?: true})
+  end
+
   defp safe_run_adapter(adapter, device, command, adapter_opts, chunk_cb) do
     adapter.run(device, command, adapter_opts, chunk_cb)
   rescue
@@ -133,6 +165,12 @@ defmodule NetAuto.Automation.RunServer do
   end
 
   defp complete_run(result, state) do
+    duration =
+      case state.started_monotonic do
+        nil -> 0
+        started -> max(System.monotonic_time(:millisecond) - started, 0)
+      end
+
     updates =
       case result do
         {:ok, exit_code, _bytes} ->
@@ -147,6 +185,14 @@ defmodule NetAuto.Automation.RunServer do
       })
 
     {:ok, run} = Automation.update_run(state.run, updates)
+
+    emit_telemetry(:stop, %{bytes: updates.bytes, duration: duration}, %{
+      run_id: run.id,
+      device_id: state.device.id,
+      site: state.site,
+      status: updates.status
+    })
+
     state = release_quota(state)
 
     %{state | run: run, finished: true}
@@ -178,8 +224,28 @@ defmodule NetAuto.Automation.RunServer do
     demonitor_adapter(state)
   end
 
+  defp format_reason(:canceled), do: "canceled"
   defp format_reason(reason) when is_binary(reason), do: reason
   defp format_reason(reason) when is_atom(reason), do: Atom.to_string(reason)
   defp format_reason(%{__struct__: _} = reason), do: inspect(reason)
   defp format_reason(reason), do: inspect(reason)
+
+  defp via_run(opts) when is_list(opts) do
+    run = Keyword.fetch!(opts, :run)
+    via_run(run.id)
+  end
+
+  defp via_run(run_id), do: {:via, Registry, {NetAuto.Automation.Registry, run_id}}
+
+  defp emit_telemetry(:start, measurements, metadata) do
+    :telemetry.execute([:net_auto, :run, :start], measurements, metadata)
+  end
+
+  defp emit_telemetry(:chunk, measurements, metadata) do
+    :telemetry.execute([:net_auto, :run, :chunk], measurements, metadata)
+  end
+
+  defp emit_telemetry(:stop, measurements, metadata) do
+    :telemetry.execute([:net_auto, :run, :stop], measurements, metadata)
+  end
 end

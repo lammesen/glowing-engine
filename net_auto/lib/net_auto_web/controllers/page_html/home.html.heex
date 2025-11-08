@@ -2,7 +2,9 @@
 <section class="mx-auto flex max-w-4xl flex-col gap-8 px-6 py-16 text-base-content">
   <header class="flex flex-col gap-2">
     <p class="text-sm font-semibold tracking-wide text-primary">Network Automation Platform</p>
-    <h1 class="text-3xl font-bold">Welcome back<%= if @user do %>, <%= @user.email %><% end %></h1>
+    <h1 class="text-3xl font-bold">
+      Welcome back<%= if @user, do: ", #{@user.email}" %>
+    </h1>
     <p class="text-base text-base-content/80">
       Authentication is wired up and all routes are guarded. Use the navigation links above to access
       account settings or sign out. Future workstreams (devices, runs, observability) will plug their
@@ -14,8 +16,14 @@
     <article>
       <h2 class="text-lg font-semibold">Environment checklist</h2>
       <ul class="mt-3 list-disc space-y-2 pl-5 text-sm">
-        <li>`mix deps.get`, `mix ecto.setup`, `mix phx.server` (HTTPS on 4001) run inside `net_auto/`.</li>
-        <li>Set `PGUSER`, `PGPASSWORD`, `PGHOST`, and `PGDATABASE` or create a `.env` from `.env.sample`.</li>
+        <li>
+          <code>mix deps.get</code>, <code>mix ecto.setup</code>, <code>mix phx.server</code> (HTTPS on 4001) run
+          inside <code>net_auto/</code>.
+        </li>
+        <li>
+          Set <code>PGUSER</code>, <code>PGPASSWORD</code>, <code>PGHOST</code>, and <code>PGDATABASE</code> or create
+          a <code>.env</code> from <code>.env.sample</code>.
+        </li>
         <li>Secrets live in env vars only; DB rows store `cred_ref` and metadata.</li>
       </ul>
     </article>

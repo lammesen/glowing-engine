@@ -2,10 +2,10 @@
 
 To start your Phoenix server:
 
-* Run `mix setup` to install and setup dependencies
-* Start Phoenix endpoint with `mix phx.server` or inside IEx with `iex -S mix phx.server`
-
-Now you can visit [`localhost:4000`](http://localhost:4000) from your browser.
+* Copy `.env.sample` to `.env` (or export `PGUSER`, `PGPASSWORD`, `PGHOST`, `PGDATABASE`) so Ecto can connect.
+* Run `mix setup` to install dependencies and prepare the database (`mix ecto.create` requires Postgres running locally).
+* Generate dev certificates once with `mix phx.gen.cert` (already committed) if you need to refresh them.
+* Start Phoenix endpoint with `mix phx.server` (or `iex -S mix phx.server`). This serves HTTP on `localhost:4000` and HTTPS on [`https://localhost:4001`](https://localhost:4001).
 
 Ready to run in production? Please [check our deployment guides](https://hexdocs.pm/phoenix/deployment.html).
 

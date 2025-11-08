@@ -4,6 +4,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
 RUN apk add --no-cache openssh bash tzdata && \
+    pip install --no-cache-dir pyyaml && \
     mkdir -p /var/run/sshd /data
 
 COPY cli_server.py /usr/local/bin/cli-server

@@ -71,7 +71,8 @@ defmodule NetAuto.MixProject do
       {:argon2_elixir, "~> 4.0"},
       {:oban, "~> 2.17"},
       {:prom_ex, "~> 1.10", only: [:dev, :prod]},
-      {:mishka_chelekom, "~> 0.0.8", only: :dev}
+      {:mishka_chelekom, "~> 0.0.8", only: :dev},
+      {:mox, "~> 1.1", only: :test}
     ]
   end
 

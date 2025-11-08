@@ -18,10 +18,12 @@ This repo hosts the Network Automation Platform reboot (Phoenix + LiveView + Mis
 - **WS02+** can now add migrations/schemas under `net_auto/lib/net_auto/*` and `priv/repo`. Respect directory scopes listed in `agents.md`.
 - **WS06** should run Mishka generators (`mix mishka.ui.gen.components --import --helpers --global --yes`) when ready.
 - **WS07/WS08** can replace the placeholder dashboard (`/`) with Devices/Run LiveViews; routes already require authenticated users.
+- **WS08 preview:** create a device record, then visit `/devices/:id` to filter run history, submit commands, and stream chunk output live while the runner broadcasts to `"run:<run_id>"`.
 
 ## Next steps
 
 - Start Postgres before running `mix ecto.create`/`mix test`; the sandbox uses env vars defined above.
+- To try the run workspace, set `NET_AUTO_<CRED_REF>_*` vars, create a device via `NetAuto.Inventory.create_device/1`, and call `NetAuto.Network.execute_command/3` (or use the `/devices/:id` form) to watch the output stream.
 - Add additional docs/tests per workstream requirements in `project.md` and `agents.md`.
 
 ## Secrets
@@ -37,3 +39,8 @@ This repo hosts the Network Automation Platform reboot (Phoenix + LiveView + Mis
   ```
 - Secrets are resolved at runtime via `NetAuto.Secrets.fetch/2`; nothing sensitive is stored in the database.
 - See `docs/secrets.md` for the complete matrix and telemetry event details.
+
+## Telemetry
+
+- Protocol-layer events are listed in `docs/telemetry.md` (`[:net_auto, :protocols, :ssh, *]`).
+- Run-layer events remain under `[:net_auto, :run, *]` and are documented alongside the SSH adapter.

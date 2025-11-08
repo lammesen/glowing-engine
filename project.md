@@ -172,7 +172,7 @@ Implement `NetAuto.Protocols.Adapter` behavior and `SSHAdapter.run/4` using `:ss
 - **Run Show**: server‑side pagination over `run_chunks`; “Download full output” action.
 
 ### 4.9 Observability & retention
-- Emit Telemetry: `net_auto.run.start|stop|error` with device_id/run_id/bytes/durations.
+- Emit Telemetry: `net_auto.run.start|stop|error` with device_id/run_id/bytes/durations. See `docs/telemetry.md` for the SSH adapter + run server event list.
 - PromEx dashboards (optional).
 - Oban worker to purge old runs/chunks by age/size.
 

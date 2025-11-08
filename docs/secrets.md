@@ -4,6 +4,9 @@
 
 ## Naming convention
 
+NetAuto.Protocols.SSHAdapter calls `NetAuto.Secrets.fetch/2` before opening any SSH session, so whichever secrets adapter you configure (env, Vault, Bitwarden, etc.) just needs to implement that behaviour.
+
+
 Given `cred_ref` = `LAB_DEFAULT`, set any of the following variables before running the app:
 
 | Purpose | Env var |

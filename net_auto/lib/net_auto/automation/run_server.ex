@@ -49,9 +49,9 @@ defmodule NetAuto.Automation.RunServer do
   def init(opts) do
     run = Keyword.fetch!(opts, :run)
     device = Keyword.fetch!(opts, :device)
-    adapter = Keyword.fetch!(opts, :adapter)
+    adapter = Keyword.get(opts, :adapter, NetAuto.Protocols.Adapter)
     command = Keyword.get(opts, :command, run.command)
-    adapter_opts = Keyword.get(opts, :adapter_opts, %{})
+    adapter_opts = opts |> Keyword.get(:adapter_opts, []) |> normalize_adapter_opts()
     site = Keyword.get(opts, :site, device.site)
     reservation = Keyword.get(opts, :reservation)
     quota_server = Keyword.get(opts, :quota_server, @default_quota_server)
@@ -146,6 +146,10 @@ defmodule NetAuto.Automation.RunServer do
     state = shutdown_adapter(state)
     finish({:error, :canceled}, %{state | canceled?: true})
   end
+
+  defp normalize_adapter_opts(nil), do: []
+  defp normalize_adapter_opts(%{} = map), do: Enum.into(map, [])
+  defp normalize_adapter_opts(opts) when is_list(opts), do: opts
 
   defp safe_run_adapter(adapter, device, command, adapter_opts, chunk_cb) do
     adapter.run(device, command, adapter_opts, chunk_cb)

@@ -25,6 +25,8 @@ config :net_auto,
   generators: [timestamp_type: :utc_datetime]
 
 config :net_auto, NetAuto.Secrets, adapter: NetAuto.Secrets.Env
+config :net_auto, NetAuto.Protocols, adapter: NetAuto.Protocols.SSHAdapter
+config :net_auto, NetAuto.Protocols.SSHAdapter, ssh: NetAuto.Protocols.SSHEx
 
 config :net_auto, :network_client, NetAuto.Network.LocalRunner
 

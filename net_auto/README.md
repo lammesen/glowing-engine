@@ -9,6 +9,17 @@ To start your Phoenix server:
 
 Ready to run in production? Please [check our deployment guides](https://hexdocs.pm/phoenix/deployment.html).
 
+## Secrets
+
+- Configure runtime credentials via env vars named `NET_AUTO_<CRED_REF>_USERNAME`, `_PASSWORD`, `_PRIVKEY`, `_PRIVKEY_BASE64`, `_PASSPHRASE`.
+- Example:
+  ```bash
+  export NET_AUTO_LAB_DEFAULT_USERNAME=netops
+  export NET_AUTO_LAB_DEFAULT_PASSWORD=changeme
+  export NET_AUTO_LAB_DEFAULT_PRIVKEY_BASE64=\"$(base64 -w0 ~/.ssh/id_rsa)\"
+  ```
+- The Secrets adapter reads these values when a device/run executes; do not persist passwords or keys in the database.
+
 ## Learn more
 
 * Official website: https://www.phoenixframework.org/

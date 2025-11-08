@@ -24,6 +24,10 @@ config :net_auto,
   ecto_repos: [NetAuto.Repo],
   generators: [timestamp_type: :utc_datetime]
 
+config :net_auto, NetAuto.Secrets, adapter: NetAuto.Secrets.Env
+
+config :net_auto, :network_client, NetAuto.Network.LocalRunner
+
 config :net_auto, NetAuto.Automation,
   global_limit: 50,
   site_limits: %{},

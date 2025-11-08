@@ -23,3 +23,16 @@ This repo hosts the Network Automation Platform reboot (Phoenix + LiveView + Mis
 
 - Start Postgres before running `mix ecto.create`/`mix test`; the sandbox uses env vars defined above.
 - Add additional docs/tests per workstream requirements in `project.md` and `agents.md`.
+
+## Secrets
+
+- Credentials live in environment variables named `NET_AUTO_<CRED_REF>_USERNAME`, `_PASSWORD`, `_PRIVKEY`, `_PRIVKEY_BASE64`, `_PASSPHRASE`.
+- Example for `cred_ref` \"LAB_DEFAULT\":
+  ```bash
+  export NET_AUTO_LAB_DEFAULT_USERNAME=netops
+  export NET_AUTO_LAB_DEFAULT_PASSWORD=changeme
+  # or key-based auth
+  export NET_AUTO_LAB_DEFAULT_PRIVKEY_BASE64=\"$(base64 -w0 ~/.ssh/id_rsa)\"
+  export NET_AUTO_LAB_DEFAULT_PASSPHRASE=
+  ```
+- Secrets are resolved at runtime via `NetAuto.Secrets.fetch/2`; nothing sensitive is stored in the database.

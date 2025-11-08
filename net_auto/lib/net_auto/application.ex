@@ -12,9 +12,8 @@ defmodule NetAuto.Application do
       NetAuto.Repo,
       {DNSCluster, query: Application.get_env(:net_auto, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: NetAuto.PubSub},
-      # Start a worker by calling: NetAuto.Worker.start_link(arg)
-      # {NetAuto.Worker, arg},
-      # Start to serve requests, typically the last entry
+      NetAuto.Automation.QuotaServer,
+      NetAuto.Automation.RunSupervisor,
       NetAutoWeb.Endpoint
     ]
 

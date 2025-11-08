@@ -5,7 +5,7 @@ defmodule NetAuto.MixProject do
     [
       app: :net_auto,
       version: "0.1.0",
-      elixir: "~> 1.15",
+      elixir: "~> 1.17",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
@@ -21,7 +21,7 @@ defmodule NetAuto.MixProject do
   def application do
     [
       mod: {NetAuto.Application, []},
-      extra_applications: [:logger, :runtime_tools]
+      extra_applications: [:logger, :runtime_tools, :ssl, :ssh]
     ]
   end
 
@@ -45,8 +45,9 @@ defmodule NetAuto.MixProject do
       {:ecto_sql, "~> 3.13"},
       {:postgrex, ">= 0.0.0"},
       {:phoenix_html, "~> 4.1"},
-      {:phoenix_live_reload, "~> 1.2", only: :dev},
+      {:phoenix_live_reload, "~> 1.5", only: :dev},
       {:phoenix_live_view, "~> 1.1.0"},
+      {:floki, ">= 0.30.0", only: :test},
       {:lazy_html, ">= 0.1.0", only: :test},
       {:phoenix_live_dashboard, "~> 0.8.3"},
       {:esbuild, "~> 0.10", runtime: Mix.env() == :dev},
@@ -65,7 +66,11 @@ defmodule NetAuto.MixProject do
       {:gettext, "~> 0.26"},
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.2.0"},
-      {:bandit, "~> 1.5"}
+      {:bandit, "~> 1.5"},
+      {:argon2_elixir, "~> 4.0"},
+      {:oban, "~> 2.17"},
+      {:prom_ex, "~> 1.10", only: [:dev, :prod]},
+      {:mishka_chelekom, "~> 0.0.8", only: :dev}
     ]
   end
 

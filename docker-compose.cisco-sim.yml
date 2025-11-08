@@ -1,5 +1,3 @@
-version: "3.9"
-
 x-sim-base: &sim-base
   image: netauto/cisco-sim:latest
   restart: unless-stopped

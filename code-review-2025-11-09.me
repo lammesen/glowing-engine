@@ -1,0 +1,119 @@
+## Executive Summary
+- Phoenix/LiveView foundation is robust: concurrency guards (`QuotaServer`), telemetry hooks, and docs align for multi-workstream growth.【F:net_auto/lib/net_auto/automation/quota_server.ex†L72-L213】【F:docs/observability.md†L1-L41】
+- High-risk gaps remain: atom creation from request params can exhaust the VM, and runs accept blank commands, undermining audit trails and adapter safety.【F:net_auto/lib/net_auto/inventory.ex†L213-L218】【F:net_auto/lib/net_auto/automation/run.ex†L33-L53】
+- Streaming UX is polished but loads entire run histories/chunks in-memory, which will struggle at scale without pagination/back-pressure.【F:net_auto/lib/net_auto/automation.ex†L155-L162】【F:net_auto/lib/net_auto_web/live/run_live.ex†L524-L534】
+
+## Repo Map
+- `/net_auto/lib/net_auto` – domain contexts (accounts, inventory, automation) plus instrumentation entry points (PromEx).【F:README.md†L21-L27】【F:net_auto/lib/net_auto/prom_ex.ex†L1-L22】 
+- `/net_auto/lib/net_auto_web` – LiveViews for devices, bulk tracking, and run workspace; authentication controllers and router live here.【F:net_auto/lib/net_auto_web/router.ex†L1-L60】【F:net_auto/lib/net_auto_web/live/device_live/index.ex†L1-L205】
+- `/net_auto/test` – comprehensive LiveView, context, and worker tests with fixtures for devices/runs.【F:net_auto/test/net_auto_web/live/device_live_test.exs†L1-L116】【F:net_auto/test/net_auto/automation/retention_worker_test.exs†L1-L72】
+
+## Build/CI
+- No CI workflows are committed; delivery relies on manual `mix precommit` guidance in `agents.md`, risking drift between contributors.【F:agents.md†L9-L76】
+- Alias `mix precommit` compiles with warnings-as-errors, trims unused deps, formats, and runs tests—capture this in automation when CI is added.【F:net_auto/mix.exs†L85-L99】
+
+## Dependencies
+- Core stack: Phoenix 1.8, LiveView 1.1, Oban 2.17, PromEx 1.10, Mishka Chelekom for UI, providing modern tooling but also requiring careful upgrade choreography.【F:net_auto/mix.exs†L41-L75】
+- Git dependency on `heroicons` triggered TLS trust errors during `mix deps.get`; ensure CI/build images include CA bundles or mirror assets locally.【8fc9fc†L1-L11】
+
+## Security (OWASP/CWE)
+- **CWE-400 (Uncontrolled Resource Consumption)**: `String.to_atom/1` on user-provided keys in device filtering can exhaust the atom table; switch to a whitelist or `String.to_existing_atom/1` fallback.【F:net_auto/lib/net_auto/inventory.ex†L204-L218】
+- **CWE-306 (Missing Authorization) / CWE-285 (Improper Authorization)**: Run changeset only checks `validate_required`, so whitespace-only commands pass validation; add `validate_length(:command, min: 1)` to prevent empty operations that could mask misuse.【F:net_auto/lib/net_auto/automation/run.ex†L33-L53】
+- **CWE-532 (Information Exposure Through Log Files)**: Formatting run errors with `inspect/1` can leak credential material coming back from adapters; replace with sanitized tagging before persisting/telemetry.【F:net_auto/lib/net_auto/automation/run_server.ex†L231-L235】【F:net_auto/lib/net_auto/automation/bulk_job.ex†L84-L88】
+
+## Code Quality
+- Strong separation of concerns between contexts (`Inventory`, `Automation`, `Network`) and adapters simplifies testing/mocking.【F:net_auto/lib/net_auto/inventory.ex†L1-L120】【F:net_auto/lib/net_auto/network.ex†L1-L84】
+- History normalization uses `String.to_existing_atom/1` inside a rescue block—good defensive pattern worth mirroring for other params.【F:net_auto/lib/net_auto/automation.ex†L225-L254】
+- Add guardrails where telemetry metadata includes user input (e.g., `command` in LiveView events) to avoid metric cardinality explosions downstream.【F:net_auto/lib/net_auto_web/live/run_live.ex†L348-L353】
+
+## Performance
+- Fetching all run chunks per selection plus repeated `Repo.aggregate` counts will degrade with large histories; paginate chunks or stream via limit/offset.【F:net_auto/lib/net_auto/automation.ex†L134-L162】【F:net_auto/lib/net_auto_web/live/run_live.ex†L524-L534】
+- Bulk fan-out executes sequentially; consider parallelizing `Network.execute_command/3` invocations per chunk to reduce wall time once adapters become remote-bound.【F:net_auto/lib/net_auto/automation/bulk_job.ex†L17-L34】
+
+## Testing
+- LiveView flows for device CRUD, bulk execution, and streaming telemetry are well-covered, improving regression confidence.【F:net_auto/test/net_auto_web/live/device_live_test.exs†L17-L116】【F:net_auto/test/net_auto_web/live/run_live_test.exs†L1-L140】
+- Could not execute `mix format --check-formatted` or `mix test` locally because dependency resolution failed (TLS/CA); ensure build images preload certs or cache deps.【03425b†L1-L2】【8fc9fc†L1-L11】
+- Add negative-path tests for `Inventory.search_devices/1` to exercise sort/filter sanitization once atom usage is fixed.【F:net_auto/lib/net_auto/inventory.ex†L172-L218】
+
+## Observability
+- Runner lifecycle, chunking, bulk, and LiveView events emit structured telemetry hooked into PromEx, and docs guide Grafana setup.【F:net_auto/lib/net_auto/automation/run_server.ex†L67-L200】【F:docs/observability.md†L1-L41】
+- Consider tagging telemetry with stable identifiers (e.g., site IDs) instead of raw commands to keep Prometheus cardinality manageable.【F:net_auto/lib/net_auto/automation/run_server.ex†L117-L123】
+
+## Data/Privacy
+- Secrets adapter documentation stresses env isolation and telemetry for fetch operations, aligning with least privilege practices.【F:docs/secrets.md†L1-L44】
+- Error formatting via `inspect/1` can inadvertently persist secrets from adapters or network stacks; scrub sensitive fields before logging or storing error reasons.【F:net_auto/lib/net_auto/automation/run_server.ex†L231-L235】
+
+## Docs/DX
+- README and agents handbook provide actionable onboarding (env vars, HTTPS certs, workstream scopes).【F:README.md†L5-L46】【F:agents.md†L1-L120】
+- Document the dependency bootstrap/TLS workaround observed during `mix deps.get` to prevent future onboarding stalls.【8fc9fc†L1-L11】
+
+## Platform-Specific Checks
+- Runtime config wires Oban cron retention and PromEx Grafana upload; verify production release scripts supply required env vars (`NET_AUTO_*`, `PROMEX_*`).【F:net_auto/config/runtime.exs†L23-L83】
+- HTTPS dev setup (`mix phx.gen.cert` guidance) is noted in README; confirm certificates are regenerated per developer via gitignored `priv/cert` artifacts.【F:README.md†L14-L20】
+
+## Tips & Tricks
+- Use `mix precommit` locally for a one-stop compile/format/test gate before pushing.【F:net_auto/mix.exs†L85-L99】
+- Leverage `NetAuto.Network.Client` behaviour to inject fakes in tests instead of Mox when adding new protocol adapters.【F:net_auto/lib/net_auto/network.ex†L10-L60】
+
+## Proposed Features (prioritized)
+1. **Harden device search filters** – replace atom creation, add input validation, and surface invalid filter feedback in the UI to prevent VM exhaustion.【F:net_auto/lib/net_auto/inventory.ex†L204-L218】
+2. **Command validation and audit trails** – enforce non-empty commands and log requester metadata for each run to strengthen compliance posture.【F:net_auto/lib/net_auto/automation/run.ex†L33-L53】【F:net_auto/lib/net_auto_web/live/run_live.ex†L320-L331】
+3. **Chunk pagination/back-pressure** – stream incremental run output via cursor-based APIs to avoid loading entire transcripts per selection.【F:net_auto/lib/net_auto/automation.ex†L155-L162】【F:net_auto/lib/net_auto_web/live/run_live.ex†L524-L534】
+
+## Suggested Patches (diff blocks, not applied)
+```diff
+--- a/net_auto/lib/net_auto/inventory.ex
++++ b/net_auto/lib/net_auto/inventory.ex
+@@
+-  defp normalize_filter_key(other) when is_binary(other), do: String.to_atom(other)
++  defp normalize_filter_key(other) when is_binary(other) do
++    case Map.fetch(@search_defaults, String.to_existing_atom(other)) do
++      {:ok, _} -> String.to_existing_atom(other)
++      :error -> other |> String.trim() |> String.downcase() |> case do
++        "query" -> :query
++        "sort_by" -> :sort_by
++        "sort_dir" -> :sort_dir
++        _ -> :query
++      end
++    end
++  rescue
++    ArgumentError -> :query
++  end
+```
+```diff
+--- a/net_auto/lib/net_auto/automation/run.ex
++++ b/net_auto/lib/net_auto/automation/run.ex
+@@
+-    |> validate_required([:command, :status, :device_id])
++    |> validate_required([:command, :status, :device_id])
++    |> update_change(:command, &String.trim/1)
++    |> validate_length(:command, min: 1)
+```
+```diff
+--- a/net_auto/lib/net_auto/automation/run_server.ex
++++ b/net_auto/lib/net_auto/automation/run_server.ex
+@@
+-  defp format_reason(%{__struct__: _} = reason), do: inspect(reason)
+-  defp format_reason(reason), do: inspect(reason)
++  defp format_reason(%{__struct__: module} = reason) do
++    %{module: module, message: Exception.message(reason)}
++    |> Jason.encode!()
++  rescue
++    _ -> "adapter_error"
++  end
++  defp format_reason(reason) when is_tuple(reason), do: inspect(Tuple.delete_at(reason, tuple_size(reason) - 1))
++  defp format_reason(reason), do: to_string(reason)
+```
+
+## Risk Register
+| Risk | Severity | Mitigation |
+| --- | --- | --- |
+| Unbounded atom creation in filters can crash the VM under crafted requests | High | Replace `String.to_atom/1` with whitelisted mapping or `to_existing_atom` guard plus validation (see suggested patch). |
+| Blank or whitespace commands stored in runs reduce auditability and may trigger adapter edge cases | Medium | Trim and validate commands at changeset level; reject empty inputs at the LiveView layer. |
+| Full run chunk loads cause memory spikes for large transcripts | Medium | Paginate `RunChunk` reads and stream deltas over PubSub with append-only semantics. |
+| TLS/CA issues block dependency fetching and CI automation | Medium | Bake CA certs into images or vend dependencies via internal mirrors; document fallback commands. |
+
+## Appendix (stats)
+- Elixir source files under `lib`: 55.【bb7231†L1-L3】
+- Test files (`.exs`) under `test`: 25.【56bde7†L1-L3】
+- Phoenix dependencies span LiveView, Oban, PromEx, Mishka Chelekom for UI, and heroicons via git (ensure CA trust chain available).【F:net_auto/mix.exs†L41-L75】【8fc9fc†L1-L11】

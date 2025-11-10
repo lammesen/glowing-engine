@@ -1,0 +1,18 @@
+app = "netauto"
+
+[env]
+  PHX_SERVER = "true"
+  PORT = "8080"
+
+[build]
+  dockerfile = "net_auto/Dockerfile"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_start_machines = true
+  auto_stop_machines = "stop"
+  min_machines_running = 1
+
+[deploy]
+  release_command = "/app/bin/net_auto eval 'Elixir.NetAuto.Release.migrate()'"

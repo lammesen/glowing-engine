@@ -1,48 +1,40 @@
 # syntax=docker/dockerfile:1.7
 
-# --- Builder ---------------------------------------------------------------
-FROM hexpm/elixir:1.19.0-erlang-27.0-debian-bookworm-20241015 AS build
+# --- build stage ---
+FROM hexpm/elixir:1.19.0-erlang-27.1-debian-bookworm-20240902 AS build
 
-ENV MIX_ENV=prod \
-    LANG=C.UTF-8
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential git curl nodejs npm && rm -rf /var/lib/apt/lists/*
+
+ENV MIX_ENV=prod
 WORKDIR /app
 
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends build-essential git curl ca-certificates \
-  && rm -rf /var/lib/apt/lists/*
-
+# Preload and compile deps
+COPY net_auto/mix.exs net_auto/mix.lock net_auto/ ./
+COPY net_auto/config ./config
 RUN mix local.hex --force && mix local.rebar --force
+RUN mix deps.get --only prod && mix deps.compile
 
-COPY mix.exs mix.lock ./
-COPY config config
-RUN mix deps.get --only $MIX_ENV && mix deps.compile
+# Assets
+COPY net_auto/assets ./assets
+RUN [ -f assets/package.json ] && npm --prefix assets ci --silent || true
+RUN mix assets.deploy
 
-COPY assets assets
-COPY priv priv
-COPY lib lib
+# Source and release
+COPY net_auto/lib ./lib
+COPY net_auto/priv ./priv
+RUN mix compile && mix release
 
-RUN MIX_ENV=$MIX_ENV mix assets.deploy
-RUN MIX_ENV=$MIX_ENV mix release
+# --- runtime stage ---
+FROM debian:bookworm-slim
 
-# --- Runtime --------------------------------------------------------------
-FROM debian:bookworm-slim AS app
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    openssl ca-certificates ncurses bash && rm -rf /var/lib/apt/lists/*
 
-ENV LANG=C.UTF-8 \
-    MIX_ENV=prod \
-    PHX_SERVER=true \
-    PORT=4000 \
-    SHELL=/bin/bash
-
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends libstdc++6 openssl ca-certificates \
-  && rm -rf /var/lib/apt/lists/* \
-  && useradd --system --create-home --shell /bin/bash app
-
+ENV MIX_ENV=prod PHX_SERVER=true PORT=8080
 WORKDIR /app
 
-COPY --from=build /app/_build/prod/rel/net_auto ./net_auto
-RUN chown -R app:app /app
-USER app
+COPY --from=build /app/_build/prod/rel/net_auto ./
 
-EXPOSE 4000
-CMD ["/app/net_auto/bin/net_auto", "start"]
+EXPOSE 8080
+CMD ["/app/bin/net_auto","start"]

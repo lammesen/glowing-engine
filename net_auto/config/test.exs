@@ -45,3 +45,9 @@ config :net_auto, NetAuto.Automation,
   global_limit: 2,
   site_limits: %{},
   default_site_limit: 1
+
+config :net_auto, Oban,
+  repo: NetAuto.Repo,
+  testing: :manual,
+  queues: [default: 10, retention: 5, bulk: 5],
+  plugins: false

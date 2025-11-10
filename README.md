@@ -12,6 +12,14 @@ This repo hosts the Network Automation Platform reboot (Phoenix + LiveView + Mis
 6. Visit `https://localhost:4001/users/register` to create the first account, then you’ll land on the auth-guarded home page.
 7. Open [`https://localhost:4001/devices`](https://localhost:4001/devices) to browse inventory, launch commands, and start bulk runs; monitor fan-out progress in real time at `/bulk/<ref>` once a job is enqueued.
 
+### Quality gates (run inside `net_auto/`)
+- `mix format --check-formatted`
+- `mix credo --strict`
+- `mix dialyzer` (first run builds PLTs; cache `_build`, `deps`, and `dialyxir_*`)
+- `mix sobelow -i Config.HTTPS --exit`
+- `mix test --cover`
+The `precommit` alias chains all of the above (plus compile warnings, deps unlock check). Expect current failures from coverage (CR-04/CR-05), Credo (CR-01), Dialyzer (CR-02), and Sobelow (CR-03/SEC-01..03) until remediation PRs land.
+
 ### Root automation tooling
 - Run `npm install` at the repo root to install the shared `@opencode-ai/sdk` helper dependency (recorded in `package-lock.json`).
 - The `node_modules/` directory is ignored by Git—rerun `npm install` after every fresh clone or whenever the lockfile changes.

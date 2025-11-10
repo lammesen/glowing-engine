@@ -101,12 +101,10 @@ defmodule NetAutoWeb.DeviceLive.Index do
       ) do
     device_ids = MapSet.to_list(ids)
 
-    cond do
-      device_ids == [] ->
-        {:noreply, put_flash(socket, :error, "Select at least one device.")}
-
-      true ->
-        start_bulk(socket, command, device_ids)
+    if device_ids == [] do
+      {:noreply, put_flash(socket, :error, "Select at least one device.")}
+    else
+      start_bulk(socket, command, device_ids)
     end
   end
 

@@ -215,30 +215,28 @@ defmodule NetAuto.Automation.QuotaServer do
   defp decrement_owner(state, owner) do
     count = Map.get(state.owner_counts, owner, 0) - 1
 
-    cond do
-      count > 0 ->
-        {%{state | owner_counts: Map.put(state.owner_counts, owner, count)}, :ok}
+    if count > 0 do
+      {%{state | owner_counts: Map.put(state.owner_counts, owner, count)}, :ok}
+    else
+      owner_counts = Map.delete(state.owner_counts, owner)
+      {monitor_ref, owner_monitors} = Map.pop(state.owner_monitors, owner, nil)
 
-      true ->
-        owner_counts = Map.delete(state.owner_counts, owner)
-        {monitor_ref, owner_monitors} = Map.pop(state.owner_monitors, owner, nil)
+      monitor_index =
+        case monitor_ref do
+          nil ->
+            state.monitor_index
 
-        monitor_index =
-          case monitor_ref do
-            nil ->
-              state.monitor_index
+          ref ->
+            Process.demonitor(ref, [:flush])
+            Map.delete(state.monitor_index, ref)
+        end
 
-            ref ->
-              Process.demonitor(ref, [:flush])
-              Map.delete(state.monitor_index, ref)
-          end
-
-        {%{
-           state
-           | owner_counts: owner_counts,
-             owner_monitors: owner_monitors,
-             monitor_index: monitor_index
-         }, :removed}
+      {%{
+         state
+         | owner_counts: owner_counts,
+           owner_monitors: owner_monitors,
+           monitor_index: monitor_index
+       }, :removed}
     end
   end
 

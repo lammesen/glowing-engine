@@ -15,6 +15,11 @@ defmodule NetAutoWeb.DeviceLiveTest do
   end
 
   describe "index" do
+    test "redirects unauthenticated visitors to log in" do
+      assert {:error, {:redirect, %{to: redirected}}} = live(build_conn(), ~p"/devices")
+      assert redirected == ~p"/users/log-in"
+    end
+
     test "lists devices and supports unified search", %{conn: conn} do
       InventoryFixtures.device_fixture(%{hostname: "alpha", site: "lab"})
       InventoryFixtures.device_fixture(%{hostname: "bravo", site: "dc1"})
@@ -60,9 +65,11 @@ defmodule NetAutoWeb.DeviceLiveTest do
       device = InventoryFixtures.device_fixture(%{hostname: "edge-old"})
 
       {:ok, view, _html} = live(conn, ~p"/devices")
+
       view
       |> element("[data-role=edit][data-device-id=\"#{device.id}\"]")
       |> render_click()
+
       assert_patch(view, ~p"/devices/#{device.id}/edit")
 
       view

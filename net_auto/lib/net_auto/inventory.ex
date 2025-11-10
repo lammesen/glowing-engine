@@ -4,15 +4,16 @@ defmodule NetAuto.Inventory do
   """
 
   import Ecto.Query, warn: false
-  alias Phoenix.PubSub
   alias NetAuto.Repo
 
   alias NetAuto.Inventory.{
+    CommandTemplate,
     Device,
     DeviceGroup,
-    DeviceGroupMembership,
-    CommandTemplate
+    DeviceGroupMembership
   }
+
+  alias Phoenix.PubSub
 
   @device_topic "inventory:devices"
   @sortable_fields ~w(hostname ip protocol site username vendor model inserted_at updated_at)a
@@ -201,20 +202,23 @@ defmodule NetAuto.Inventory do
   defp sanitize_sort_dir("asc"), do: :asc
   defp sanitize_sort_dir(_dir), do: :asc
 
+  @filter_key_map %{"query" => :query, "sort_by" => :sort_by, "sort_dir" => :sort_dir}
+
   defp normalize_filter_opts(opts) when is_map(opts) do
-    opts
-    |> Enum.map(fn {key, value} -> {normalize_filter_key(key), value} end)
-    |> Map.new()
+    Enum.reduce(opts, %{}, fn {key, value}, acc ->
+      case normalize_filter_key(key) do
+        nil -> acc
+        normalized_key -> Map.put(acc, normalized_key, value)
+      end
+    end)
   end
 
   defp normalize_filter_opts(opts) when is_list(opts),
     do: opts |> Map.new() |> normalize_filter_opts()
 
   defp normalize_filter_key(key) when is_atom(key), do: key
-  defp normalize_filter_key("query"), do: :query
-  defp normalize_filter_key("sort_by"), do: :sort_by
-  defp normalize_filter_key("sort_dir"), do: :sort_dir
-  defp normalize_filter_key(other) when is_binary(other), do: String.to_atom(other)
+  defp normalize_filter_key(key) when is_binary(key), do: Map.get(@filter_key_map, key)
+  defp normalize_filter_key(_), do: nil
 
   defp broadcast_device({:ok, device} = result, action) do
     PubSub.broadcast(NetAuto.PubSub, @device_topic, {:device, action, device})

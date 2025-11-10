@@ -6,11 +6,11 @@ defmodule NetAutoWeb.RunLive do
 
   use NetAutoWeb, :live_view
 
-  alias Phoenix.PubSub
   alias NetAuto.Accounts
   alias NetAuto.Automation
   alias NetAuto.Inventory
   alias NetAuto.Network
+  alias Phoenix.PubSub
 
   @status_options [:pending, :running, :ok, :error]
   @history_per_page 20
@@ -535,14 +535,12 @@ defmodule NetAutoWeb.RunLive do
   defp subscribe_to_run(socket, nil), do: maybe_unsubscribe(socket)
 
   defp subscribe_to_run(socket, run_id) do
-    cond do
-      socket.assigns.subscribed_run_id == run_id ->
-        socket
-
-      true ->
-        socket = maybe_unsubscribe(socket)
-        Phoenix.PubSub.subscribe(NetAuto.PubSub, run_topic(run_id))
-        assign(socket, :subscribed_run_id, run_id)
+    if socket.assigns.subscribed_run_id == run_id do
+      socket
+    else
+      socket = maybe_unsubscribe(socket)
+      Phoenix.PubSub.subscribe(NetAuto.PubSub, run_topic(run_id))
+      assign(socket, :subscribed_run_id, run_id)
     end
   end
 
@@ -623,7 +621,11 @@ defmodule NetAutoWeb.RunLive do
   defp maybe_update_bulk_progress(socket, _ref, _payload), do: socket
 
   defp maybe_update_bulk_summary(%{assigns: %{bulk_context: %{ref: ref}}} = socket, ref, payload) do
-    assign(socket, :bulk_context, Map.put(socket.assigns.bulk_context, :summary, %{ok: payload.ok, error: payload.error}))
+    assign(
+      socket,
+      :bulk_context,
+      Map.put(socket.assigns.bulk_context, :summary, %{ok: payload.ok, error: payload.error})
+    )
   end
 
   defp maybe_update_bulk_summary(socket, _ref, _payload), do: socket
@@ -633,6 +635,7 @@ defmodule NetAutoWeb.RunLive do
   defp format_bulk_status(%{status: status, run_id: run_id, error: error}) do
     run_label = if run_id, do: "run ##{run_id}", else: "device"
     base = "#{String.upcase(to_string(status))} #{run_label}"
+
     if error do
       "#{base} (#{error})"
     else

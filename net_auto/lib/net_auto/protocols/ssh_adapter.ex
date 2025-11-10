@@ -105,21 +105,19 @@ defmodule NetAuto.Protocols.SSHAdapter do
   defp build_connect_opts(device, %Credential{} = credential, opts) do
     username = credential.username || device.username
 
-    cond do
-      is_nil(username) ->
-        {:error, :missing_username}
+    if is_nil(username) do
+      {:error, :missing_username}
+    else
+      base =
+        [
+          user: to_charlist(username),
+          user_interaction: false,
+          connect_timeout: Keyword.get(opts, :connect_timeout, @default_connect_timeout),
+          silently_accept_hosts: Keyword.get(opts, :silently_accept_hosts, false)
+        ]
+        |> maybe_put(:password, credential.password && to_charlist(credential.password))
 
-      true ->
-        base =
-          [
-            user: to_charlist(username),
-            user_interaction: false,
-            connect_timeout: Keyword.get(opts, :connect_timeout, @default_connect_timeout),
-            silently_accept_hosts: Keyword.get(opts, :silently_accept_hosts, false)
-          ]
-          |> maybe_put(:password, credential.password && to_charlist(credential.password))
-
-        maybe_add_identity(base, credential.private_key)
+      maybe_add_identity(base, credential.private_key)
     end
   end
 

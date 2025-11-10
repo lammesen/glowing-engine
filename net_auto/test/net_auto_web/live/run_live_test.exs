@@ -30,13 +30,29 @@ defmodule NetAutoWeb.RunLiveTest do
 
   test "filtering history narrows the list", %{conn: conn} do
     device = InventoryFixtures.device_fixture()
-    AutomationFixtures.run_fixture(%{device: device, status: :ok, command: "show version", requested_by: "alice"})
-    AutomationFixtures.run_fixture(%{device: device, status: :error, command: "show config", requested_by: "bob"})
+
+    AutomationFixtures.run_fixture(%{
+      device: device,
+      status: :ok,
+      command: "show version",
+      requested_by: "alice"
+    })
+
+    AutomationFixtures.run_fixture(%{
+      device: device,
+      status: :error,
+      command: "show config",
+      requested_by: "bob"
+    })
 
     {:ok, view, _html} = live(conn, ~p"/devices/#{device.id}")
 
     view
-    |> form("#history-filter-form", %{"statuses" => ["ok"], "requested_by" => "alice", "query" => "show"})
+    |> form("#history-filter-form", %{
+      "statuses" => ["ok"],
+      "requested_by" => "alice",
+      "query" => "show"
+    })
     |> render_submit()
 
     html = render(view)
@@ -111,6 +127,7 @@ defmodule NetAutoWeb.RunLiveTest do
     live(conn, ~p"/devices/#{device.id}")
 
     device_id = device.id
+
     assert_receive {
       :telemetry_event,
       [:net_auto, :liveview, :mount],
@@ -132,6 +149,7 @@ defmodule NetAutoWeb.RunLiveTest do
     |> render_submit()
 
     device_id = device.id
+
     assert_receive {
       :telemetry_event,
       [:net_auto, :liveview, :command_submitted],
@@ -150,8 +168,18 @@ defmodule NetAutoWeb.RunLiveTest do
     device = InventoryFixtures.device_fixture()
     {:ok, view, _html} = live(conn, ~p"/devices/#{device.id}?bulk_ref=bulk-demo")
 
-    Phoenix.PubSub.broadcast(NetAuto.PubSub, "bulk:bulk-demo", {:bulk_progress, %{bulk_ref: "bulk-demo", device_id: device.id, status: :ok, run_id: 777, error: nil}})
-    Phoenix.PubSub.broadcast(NetAuto.PubSub, "bulk:bulk-demo", {:bulk_summary, %{bulk_ref: "bulk-demo", ok: 1, error: 0}})
+    Phoenix.PubSub.broadcast(
+      NetAuto.PubSub,
+      "bulk:bulk-demo",
+      {:bulk_progress,
+       %{bulk_ref: "bulk-demo", device_id: device.id, status: :ok, run_id: 777, error: nil}}
+    )
+
+    Phoenix.PubSub.broadcast(
+      NetAuto.PubSub,
+      "bulk:bulk-demo",
+      {:bulk_summary, %{bulk_ref: "bulk-demo", ok: 1, error: 0}}
+    )
 
     html = render(view)
     assert html =~ "Bulk job bulk-demo"
@@ -160,12 +188,19 @@ defmodule NetAutoWeb.RunLiveTest do
   end
 
   defp attach_telemetry(event) do
-    handler_id = "run-live-telemetry-#{Enum.join(Enum.map(event, &to_string/1), "-")}-#{System.unique_integer()}"
+    handler_id =
+      "run-live-telemetry-#{Enum.map_join(event, "-", &to_string/1)}-#{System.unique_integer()}"
+
     test_pid = self()
 
-    :telemetry.attach(handler_id, event, fn ^event, measurements, metadata, _ ->
-      send(test_pid, {:telemetry_event, event, measurements, metadata})
-    end, nil)
+    :telemetry.attach(
+      handler_id,
+      event,
+      fn ^event, measurements, metadata, _ ->
+        send(test_pid, {:telemetry_event, event, measurements, metadata})
+      end,
+      nil
+    )
 
     handler_id
   end

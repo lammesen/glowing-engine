@@ -11,14 +11,25 @@ defmodule NetAuto.PromEx do
 
   @impl true
   def plugins do
-    [
+    base = [
       PromEx.Plugins.Application,
-      PromEx.Plugins.Ecto,
-      PromEx.Plugins.Oban,
-      {PromEx.Plugins.Phoenix, router: Router, endpoint: Endpoint},
-      {PromEx.Plugins.PhoenixLiveView, router: Router, endpoint: Endpoint},
-      {ObservabilityPlugin, metric_prefix: [:net_auto, :runner]}
+      PromEx.Plugins.Ecto
     ]
+
+    oban_plugins =
+      if oban_enabled?() do
+        [PromEx.Plugins.Oban]
+      else
+        []
+      end
+
+    base ++
+      oban_plugins ++
+      [
+        {PromEx.Plugins.Phoenix, router: Router, endpoint: Endpoint},
+        {PromEx.Plugins.PhoenixLiveView, router: Router, endpoint: Endpoint},
+        {ObservabilityPlugin, metric_prefix: [:net_auto, :runner]}
+      ]
   end
 
   @impl true
@@ -26,5 +37,11 @@ defmodule NetAuto.PromEx do
     [
       dashboards_dir: "lib/net_auto/prom_ex/dashboards"
     ]
+  end
+
+  defp oban_enabled? do
+    Application.get_env(:net_auto, Oban, [])
+    |> Keyword.get(:queues)
+    |> Kernel.!=(false)
   end
 end

@@ -110,16 +110,13 @@ defmodule NetAutoWeb.DeviceLive.FormComponent do
   defp decode_tags(tags) when is_binary(tags) do
     trimmed = String.trim(tags)
 
-    cond do
-      trimmed == "" ->
-        %{}
-
-      true ->
-        Jason.decode(trimmed)
-        |> case do
-          {:ok, map} when is_map(map) -> map
-          _ -> trimmed
-        end
+    if trimmed == "" do
+      %{}
+    else
+      case Jason.decode(trimmed) do
+        {:ok, map} when is_map(map) -> map
+        _ -> trimmed
+      end
     end
   end
 

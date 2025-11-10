@@ -1,8 +1,7 @@
 defmodule NetAuto.NetworkTest do
   use NetAuto.DataCase, async: true
 
-  alias NetAuto.Network
-  alias NetAuto.InventoryFixtures
+  alias NetAuto.{Automation, InventoryFixtures, Network}
 
   defmodule FakeClient do
     @behaviour NetAuto.Network.Client
@@ -10,6 +9,23 @@ defmodule NetAuto.NetworkTest do
     def execute_command(device_id, command, attrs) do
       send(self(), {:fake_client_called, device_id, command, attrs})
       {:ok, %{device_id: device_id, command: command, attrs: attrs}}
+    end
+  end
+
+  defmodule AttrCaptureClient do
+    @behaviour NetAuto.Network.Client
+
+    @impl true
+    def execute_command(device_id, command, attrs) do
+      send(self(), {:captured_attrs, attrs})
+
+      {:ok,
+       %Automation.Run{
+         id: 99,
+         device_id: device_id,
+         command: command,
+         status: :pending
+       }}
     end
   end
 
@@ -23,6 +39,37 @@ defmodule NetAuto.NetworkTest do
     assert_received {:fake_client_called, 42, "show run", %{requested_by: "alice"}}
   end
 
+  describe "attribute normalization" do
+    setup do
+      Application.put_env(:net_auto, :network_client, AttrCaptureClient)
+      on_exit(fn -> Application.delete_env(:net_auto, :network_client) end)
+      :ok
+    end
+
+    test "whitelists atom and binary keys" do
+      attrs = %{
+        "requested_by" => "alice",
+        "requested_for" => "ops",
+        "ignored" => "noop",
+        requested_at: ~U[2025-11-10 12:00:00Z]
+      }
+
+      {:ok, _run} = Network.execute_command(1, "show", attrs)
+
+      assert_receive {:captured_attrs,
+                      %{
+                        requested_by: "alice",
+                        requested_for: "ops",
+                        requested_at: ~U[2025-11-10 12:00:00Z]
+                      }}
+    end
+
+    test "ignores non-map attrs" do
+      {:ok, _run} = Network.execute_command(1, "show", [:bad])
+      assert_receive {:captured_attrs, %{}}
+    end
+  end
+
   test "local runner inserts pending run for device" do
     Application.delete_env(:net_auto, :network_client)
 
@@ -31,9 +78,15 @@ defmodule NetAuto.NetworkTest do
     handler_ids =
       for event <- [[:net_auto, :runner, :start], [:net_auto, :runner, :stop]] do
         id = "runner-telemetry-#{inspect(event)}-#{System.unique_integer()}"
-        :telemetry.attach(id, event, fn ^event, measurements, metadata, _ ->
-          send(self(), {:telemetry_event, event, measurements, metadata})
-        end, nil)
+
+        :telemetry.attach(
+          id,
+          event,
+          fn ^event, measurements, metadata, _ ->
+            send(self(), {:telemetry_event, event, measurements, metadata})
+          end,
+          nil
+        )
 
         id
       end
@@ -50,7 +103,10 @@ defmodule NetAuto.NetworkTest do
     assert %DateTime{} = run.requested_at
     device_id = device.id
     run_id = run.id
-    assert_receive {:telemetry_event, [:net_auto, :runner, :start], %{count: 1}, %{device_id: ^device_id}}
+
+    assert_receive {:telemetry_event, [:net_auto, :runner, :start], %{count: 1},
+                    %{device_id: ^device_id}}
+
     assert_receive {
       :telemetry_event,
       [:net_auto, :runner, :stop],

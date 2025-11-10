@@ -16,6 +16,10 @@ defmodule NetAutoWeb.ConnCase do
   """
 
   use ExUnit.CaseTemplate
+  alias NetAuto.Accounts
+  alias NetAuto.Accounts.Scope
+  alias NetAuto.AccountsFixtures
+  alias Phoenix.ConnTest
 
   using do
     quote do
@@ -33,7 +37,7 @@ defmodule NetAutoWeb.ConnCase do
 
   setup tags do
     NetAuto.DataCase.setup_sandbox(tags)
-    {:ok, conn: Phoenix.ConnTest.build_conn()}
+    {:ok, conn: ConnTest.build_conn()}
   end
 
   @doc """
@@ -45,8 +49,8 @@ defmodule NetAutoWeb.ConnCase do
   test context.
   """
   def register_and_log_in_user(%{conn: conn} = context) do
-    user = NetAuto.AccountsFixtures.user_fixture()
-    scope = NetAuto.Accounts.Scope.for_user(user)
+    user = AccountsFixtures.user_fixture()
+    scope = Scope.for_user(user)
 
     opts =
       context
@@ -62,18 +66,18 @@ defmodule NetAutoWeb.ConnCase do
   It returns an updated `conn`.
   """
   def log_in_user(conn, user, opts \\ []) do
-    token = NetAuto.Accounts.generate_user_session_token(user)
+    token = Accounts.generate_user_session_token(user)
 
     maybe_set_token_authenticated_at(token, opts[:token_authenticated_at])
 
     conn
-    |> Phoenix.ConnTest.init_test_session(%{})
+    |> ConnTest.init_test_session(%{})
     |> Plug.Conn.put_session(:user_token, token)
   end
 
   defp maybe_set_token_authenticated_at(_token, nil), do: nil
 
   defp maybe_set_token_authenticated_at(token, authenticated_at) do
-    NetAuto.AccountsFixtures.override_token_authenticated_at(token, authenticated_at)
+    AccountsFixtures.override_token_authenticated_at(token, authenticated_at)
   end
 end

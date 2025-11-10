@@ -16,7 +16,8 @@ defmodule NetAuto.SecretsTest do
     @behaviour NetAuto.Secrets
 
     @impl true
-    def fetch("path/to/secret", _opts), do: {:ok, %Credential{cred_ref: "vault", password: "vault-secret"}}
+    def fetch("path/to/secret", _opts),
+      do: {:ok, %Credential{cred_ref: "vault", password: "vault-secret"}}
   end
 
   setup do

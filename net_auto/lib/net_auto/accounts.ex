@@ -6,7 +6,7 @@ defmodule NetAuto.Accounts do
   import Ecto.Query, warn: false
   alias NetAuto.Repo
 
-  alias NetAuto.Accounts.{User, UserToken, UserNotifier}
+  alias NetAuto.Accounts.{User, UserNotifier, UserToken}
 
   ## Database getters
 

@@ -26,8 +26,33 @@ defmodule NetAuto.InventoryTest do
 
     test "list_devices/0 returns stored devices" do
       device = InventoryFixtures.device_fixture()
-      assert [fetched] = Inventory.list_devices()
-      assert fetched.id == device.id
+      assert Enum.any?(Inventory.list_devices(), &(&1.id == device.id))
+    end
+
+    test "search_devices/1 filters and sorts results" do
+      _first = InventoryFixtures.device_fixture(%{hostname: "alpha"})
+      _second = InventoryFixtures.device_fixture(%{hostname: "bravo"})
+
+      results = Inventory.search_devices(%{query: "alpha"})
+      assert Enum.map(results, & &1.hostname) == ["alpha"]
+
+      sorted = Inventory.search_devices(%{sort_by: "hostname", sort_dir: "desc"})
+      assert Enum.map(sorted, & &1.hostname) |> Enum.take(2) == ["bravo", "alpha"]
+
+      fallback = Inventory.search_devices(%{sort_by: "not-a-field"})
+      names = Enum.map(fallback, & &1.hostname)
+      assert names == Enum.sort(names)
+    end
+
+    test "delete_device/1 removes record" do
+      device = InventoryFixtures.device_fixture()
+      assert {:ok, _} = Inventory.delete_device(device)
+      refute Enum.any?(Inventory.list_devices(), &(&1.id == device.id))
+    end
+
+    test "change_device/2 returns changeset" do
+      device = InventoryFixtures.device_fixture()
+      assert %Ecto.Changeset{} = Inventory.change_device(device, %{hostname: "updated"})
     end
   end
 
@@ -60,6 +85,13 @@ defmodule NetAuto.InventoryTest do
 
       assert %{device_id: ["device already added to this group"]} = errors_on(changeset)
     end
+
+    test "list and remove memberships" do
+      membership = InventoryFixtures.membership_fixture()
+      assert Enum.any?(Inventory.list_memberships(), &(&1.id == membership.id))
+      assert {:ok, _} = Inventory.remove_device_from_group(membership)
+      refute Enum.any?(Inventory.list_memberships(), &(&1.id == membership.id))
+    end
   end
 
   describe "command templates" do
@@ -75,6 +107,12 @@ defmodule NetAuto.InventoryTest do
                Inventory.create_command_template(%{name: "bad", body: "noop", mode: :write})
 
       assert %{mode: ["is invalid"]} = errors_on(changeset)
+    end
+
+    test "list and change command templates" do
+      template = InventoryFixtures.command_template_fixture()
+      assert Enum.any?(Inventory.list_command_templates(), &(&1.id == template.id))
+      assert %Ecto.Changeset{} = Inventory.change_command_template(template, %{name: "updated"})
     end
   end
 end

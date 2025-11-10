@@ -1,4 +1,7 @@
 defmodule NetAuto.Accounts.UserToken do
+  @moduledoc """
+  Persists login/reset tokens with helper functions to manage validity.
+  """
   use Ecto.Schema
   import Ecto.Query
   alias NetAuto.Accounts.UserToken

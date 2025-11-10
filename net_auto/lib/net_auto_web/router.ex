@@ -9,7 +9,16 @@ defmodule NetAutoWeb.Router do
     plug :fetch_live_flash
     plug :put_root_layout, html: {NetAutoWeb.Layouts, :root}
     plug :protect_from_forgery
-    plug :put_secure_browser_headers
+    plug NetAutoWeb.Plugs.ContentSecurityPolicy
+
+    plug :put_secure_browser_headers,
+         %{
+           # Note: `unsafe-inline` for styles is currently required by Phoenix LiveView; see
+           # SECURITY_REPORT.md (SEC-05) for the documented exception and removal plan.
+           "content-security-policy" =>
+             "default-src 'self'; img-src 'self' data:; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'"
+         }
+
     plug :fetch_current_scope_for_user
   end
 

@@ -202,20 +202,23 @@ defmodule NetAuto.Inventory do
   defp sanitize_sort_dir("asc"), do: :asc
   defp sanitize_sort_dir(_dir), do: :asc
 
+  @filter_key_map %{"query" => :query, "sort_by" => :sort_by, "sort_dir" => :sort_dir}
+
   defp normalize_filter_opts(opts) when is_map(opts) do
-    opts
-    |> Enum.map(fn {key, value} -> {normalize_filter_key(key), value} end)
-    |> Map.new()
+    Enum.reduce(opts, %{}, fn {key, value}, acc ->
+      case normalize_filter_key(key) do
+        nil -> acc
+        normalized_key -> Map.put(acc, normalized_key, value)
+      end
+    end)
   end
 
   defp normalize_filter_opts(opts) when is_list(opts),
     do: opts |> Map.new() |> normalize_filter_opts()
 
-  @filter_key_map %{"query" => :query, "sort_by" => :sort_by, "sort_dir" => :sort_dir}
-
   defp normalize_filter_key(key) when is_atom(key), do: key
-
-  defp normalize_filter_key(key) when is_binary(key), do: Map.get(@filter_key_map, key, key)
+  defp normalize_filter_key(key) when is_binary(key), do: Map.get(@filter_key_map, key)
+  defp normalize_filter_key(_), do: nil
 
   defp broadcast_device({:ok, device} = result, action) do
     PubSub.broadcast(NetAuto.PubSub, @device_topic, {:device, action, device})

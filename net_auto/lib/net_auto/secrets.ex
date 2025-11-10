@@ -60,6 +60,9 @@ defmodule NetAuto.Secrets do
     :telemetry.execute([:net_auto, :secrets, :fetch], %{duration: duration}, metadata)
   end
 
+  defp normalize_result(:ok), do: :ok
+  defp normalize_result(:error), do: :error
   defp normalize_result({:ok, _}), do: :ok
   defp normalize_result({:error, _}), do: :error
+  defp normalize_result(_), do: :unknown
 end

@@ -12,6 +12,11 @@ This repo hosts the Network Automation Platform reboot (Phoenix + LiveView + Mis
 6. Visit `https://localhost:4001/users/register` to create the first account, then you’ll land on the auth-guarded home page.
 7. Open [`https://localhost:4001/devices`](https://localhost:4001/devices) to browse inventory, launch commands, and start bulk runs; monitor fan-out progress in real time at `/bulk/<ref>` once a job is enqueued.
 
+### Root automation tooling
+- Run `npm install` at the repo root to install the shared `@opencode-ai/sdk` helper dependency (recorded in `package-lock.json`).
+- The `node_modules/` directory is ignored by Git—rerun `npm install` after every fresh clone or whenever the lockfile changes.
+- Future workflow scripts will live under `bin/` or `scripts/` and can import the SDK; document any new commands in this section when they land.
+
 ### Manually capturing UI screenshots
 1. Run `mix phx.server` in `net_auto/` so HTTPS endpoints are available.
 2. Sign in and visit `/devices`; select a few rows and open the bulk modal so both the table and dialog are visible. Use your OS shortcut (`⌘⇧4` on macOS, `Win+Shift+S` on Windows, `Shift+PrintScreen` on GNOME) to grab the screenshot.

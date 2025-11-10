@@ -12,7 +12,7 @@ parameters:
     default: "16.3"
   elixir_image_tag:
     type: string
-    default: "1.19.0-node"
+    default: "1.19.2"
 
 commands:
   checkout_repo:

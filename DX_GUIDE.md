@@ -22,8 +22,8 @@ List required versions (Elixir 1.19, OTP, Postgres), installation methods (asdf,
 Document `mix setup`, `mix precommit`, `bin/dev`, Cisco simulator scripts, Makefile targets (if added), and expected outputs.
 
 - Observed command behavior (2025-11-10):
-  - `mix test --cover` fails due to `NetAuto.InventoryTest.list_devices/0` expecting isolated data; seeds insert five devices. Capture fixtures per test (CR-05).
-  - Coverage output 80.78% after LiveView + context tests; still below ≥85% guardrail, so keep treating as failing build until addressed.
+  - `mix test --cover` now runs without Oban sandbox crashes (Oban testing mode is `:manual`), but coverage remains <85%.
+  - Coverage output 81.25% after LiveView + context tests; still below ≥85% guardrail, so keep treating as failing build until addressed.
   - `mix credo --strict` now runs but reports missing `@moduledoc` tags, alias ordering issues, and nested `cond` blocks (CR-01).
   - `mix dialyzer` builds PLTs then fails on missing type specs (`Run.t`, `Device.t`) and impossible matches in RetentionWorker (CR-02).
   - `mix sobelow -i Config.HTTPS --exit` highlights missing CSP header plus potential traversal/string-to-atom vectors (CR-03/SEC-01..03).

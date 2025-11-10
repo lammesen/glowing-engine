@@ -16,7 +16,7 @@
 - Update: `Dockerfile`
 
 **Steps:**
-1. Overwrite with the provided multi-stage definition (hexpm build image + Debian runtime) using the latest published hexpm Elixir tag (currently `hexpm/elixir:1.19.0-rc.1-erlang-26.2.5.11-debian-bullseye-20251103-slim`), installing Node/npm in build stage.
+1. Overwrite with the provided multi-stage definition (official Docker Hub Elixir image + Debian runtime) using `elixir:1.19.2` for the builder stage, installing Node/npm in build stage.
 2. Ensure assets builds (`npm --prefix assets ci`) guard works even if package.json missing.
 3. Confirm runtime stage copies release to `/app` and starts with `CMD ["/app/bin/net_auto","start"]`, exposing port 8080.
 

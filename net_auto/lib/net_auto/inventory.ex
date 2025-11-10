@@ -4,15 +4,16 @@ defmodule NetAuto.Inventory do
   """
 
   import Ecto.Query, warn: false
-  alias Phoenix.PubSub
   alias NetAuto.Repo
 
   alias NetAuto.Inventory.{
+    CommandTemplate,
     Device,
     DeviceGroup,
-    DeviceGroupMembership,
-    CommandTemplate
+    DeviceGroupMembership
   }
+
+  alias Phoenix.PubSub
 
   @device_topic "inventory:devices"
   @sortable_fields ~w(hostname ip protocol site username vendor model inserted_at updated_at)a

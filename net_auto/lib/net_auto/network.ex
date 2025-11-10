@@ -37,24 +37,23 @@ defmodule NetAuto.Network do
   end
 
   defp normalize_attrs(attrs) when is_map(attrs) do
-    Enum.reduce(attrs, %{}, fn entry, acc ->
-      case entry do
-        {key, value} when is_atom(key) and key in @allowed_attr_keys ->
-          Map.put(acc, key, value)
-
-        {key, value} when is_binary(key) ->
-          case normalize_binary_key(key) do
-            nil -> acc
-            atom_key -> Map.put(acc, atom_key, value)
-          end
-
-        _other ->
-          acc
-      end
-    end)
+    Enum.reduce(attrs, %{}, &maybe_put_normalized_attr/2)
   end
 
   defp normalize_attrs(_), do: %{}
+
+  defp maybe_put_normalized_attr({key, value}, acc) when is_atom(key) do
+    if key in @allowed_attr_keys, do: Map.put(acc, key, value), else: acc
+  end
+
+  defp maybe_put_normalized_attr({key, value}, acc) when is_binary(key) do
+    case normalize_binary_key(key) do
+      nil -> acc
+      atom_key -> Map.put(acc, atom_key, value)
+    end
+  end
+
+  defp maybe_put_normalized_attr(_entry, acc), do: acc
 
   defp normalize_binary_key("requested_by"), do: :requested_by
   defp normalize_binary_key("requested_at"), do: :requested_at
@@ -92,6 +91,7 @@ defmodule NetAuto.Network do
       case result do
         {:ok, run} ->
           duration = System.monotonic_time() - start_time
+
           measurements = %{
             duration_ms: System.convert_time_unit(duration, :native, :millisecond),
             bytes: run.bytes || 0,

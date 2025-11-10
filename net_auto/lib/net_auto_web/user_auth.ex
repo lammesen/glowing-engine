@@ -1,4 +1,7 @@
 defmodule NetAutoWeb.UserAuth do
+  @moduledoc """
+  Session helpers and plugs for logging users in/out and fetching scopes.
+  """
   use NetAutoWeb, :verified_routes
 
   import Plug.Conn

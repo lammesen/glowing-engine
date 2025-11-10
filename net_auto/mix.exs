@@ -74,7 +74,7 @@ defmodule NetAuto.MixProject do
       {:mishka_chelekom, "~> 0.0.8", only: :dev},
       {:mox, "~> 1.1", only: :test},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
-      {:dialyxir, "~> 1.4", only: [:dev], runtime: false},
+      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:sobelow, "~> 0.13", only: :dev}
     ]
   end

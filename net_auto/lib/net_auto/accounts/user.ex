@@ -1,4 +1,7 @@
 defmodule NetAuto.Accounts.User do
+  @moduledoc """
+  Ecto schema and changesets for NetAuto users.
+  """
   use Ecto.Schema
   import Ecto.Changeset
 

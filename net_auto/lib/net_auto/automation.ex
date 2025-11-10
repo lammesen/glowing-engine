@@ -8,7 +8,7 @@ defmodule NetAuto.Automation do
   alias NetAuto.Repo
   alias Oban
 
-  alias NetAuto.Automation.{BulkJob, Run, RunChunk, RunServer, QuotaServer}
+  alias NetAuto.Automation.{BulkJob, QuotaServer, Run, RunChunk, RunServer}
   alias NetAuto.Inventory.Device
 
   @retention_defaults %{max_age_days: 30, max_total_bytes: :infinity}
@@ -238,16 +238,14 @@ defmodule NetAuto.Automation do
   defp normalize_status(value) when is_binary(value) do
     trimmed = value |> String.trim() |> String.downcase()
 
-    cond do
-      trimmed == "" ->
-        nil
-
-      true ->
-        try do
-          String.to_existing_atom(trimmed)
-        rescue
-          ArgumentError -> nil
-        end
+    if trimmed == "" do
+      nil
+    else
+      try do
+        String.to_existing_atom(trimmed)
+      rescue
+        ArgumentError -> nil
+      end
     end
   end
 

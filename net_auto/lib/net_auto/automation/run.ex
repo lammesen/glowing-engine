@@ -6,8 +6,8 @@ defmodule NetAuto.Automation.Run do
   use Ecto.Schema
   import Ecto.Changeset
 
-  alias NetAuto.Inventory.{Device, CommandTemplate}
   alias NetAuto.Automation.RunChunk
+  alias NetAuto.Inventory.{CommandTemplate, Device}
 
   @status_values [:pending, :running, :ok, :error]
 

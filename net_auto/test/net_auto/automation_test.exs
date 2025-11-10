@@ -3,8 +3,8 @@ defmodule NetAuto.AutomationTest do
 
   alias NetAuto.Automation
   alias NetAuto.AutomationFixtures
-  alias NetAuto.InventoryFixtures
   alias NetAuto.Inventory.Device
+  alias NetAuto.InventoryFixtures
   alias NetAuto.Repo
   alias Oban.Job
   import Mox

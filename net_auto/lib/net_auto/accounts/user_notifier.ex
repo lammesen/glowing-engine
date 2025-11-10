@@ -1,8 +1,11 @@
 defmodule NetAuto.Accounts.UserNotifier do
+  @moduledoc """
+  Sends confirmation, login, and email-update instructions to users.
+  """
   import Swoosh.Email
 
-  alias NetAuto.Mailer
   alias NetAuto.Accounts.User
+  alias NetAuto.Mailer
 
   # Delivers the email using the application mailer.
   defp deliver(recipient, subject, body) do

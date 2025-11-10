@@ -1,7 +1,7 @@
 defmodule NetAuto.NetworkTest do
   use NetAuto.DataCase, async: true
 
-  alias NetAuto.{Automation, Network, InventoryFixtures}
+  alias NetAuto.{Automation, InventoryFixtures, Network}
 
   defmodule FakeClient do
     @behaviour NetAuto.Network.Client

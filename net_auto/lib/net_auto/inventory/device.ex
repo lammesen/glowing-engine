@@ -6,8 +6,8 @@ defmodule NetAuto.Inventory.Device do
   use Ecto.Schema
   import Ecto.Changeset
 
-  alias NetAuto.Inventory.DeviceGroupMembership
   alias NetAuto.Automation.Run
+  alias NetAuto.Inventory.DeviceGroupMembership
 
   @protocol_values [:ssh, :telnet]
 

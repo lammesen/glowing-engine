@@ -3,7 +3,7 @@
 ## Status Snapshot
 | Area | Baseline | Current Risk | Next Action |
 |------|----------|--------------|-------------|
-| Sobelow | Not run | Unknown | Execute `mix sobelow -i Config.HTTPS --exit` |
+| Sobelow | First green run 2025-11-10 14:45 PT | Low – gate passes locally | Keep command in `mix precommit`; capture report artifacts in CI |
 
 ## Purpose & Scope
 Document NetAuto’s security posture (authN/authZ, CSRF, CSP, secrets, job handling) and link every finding to remediation work.
@@ -17,11 +17,13 @@ Document NetAuto’s security posture (authN/authZ, CSRF, CSP, secrets, job hand
 Describe actors, entry points, and assets (devices, jobs, secrets).
 
 ## 2. Findings Overview
-| ID | Category | Severity | Description | Evidence | Recommended Fix |
-|----|----------|----------|-------------|----------|-----------------|
-| SEC-01 | Config | High | Missing Content-Security-Policy header in `:browser` pipeline | Sobelow Config.CSP finding (2025-11-10) | Add CSP plug defaulting to strict policy; document overrides |
-| SEC-02 | Input Validation | Medium | `String.to_atom/1` on user input in `Inventory.normalize_filter_key/1` | Sobelow DOS.StringToAtom (2025-11-10) | Use `String.to_existing_atom` whitelist or map lookup |
-| SEC-03 | File Handling | Medium | SSH adapter writes keys to arbitrary paths (`File.mkdir_p!`, `File.write!`, `File.rm_rf`) without sanitization | Sobelow Traversal.FileModule warnings (2025-11-10) | Restrict directories, validate paths, avoid rm_rf outside temp dirs |
+| ID | Category | Severity | Description | Evidence | Status / Next Step |
+|----|----------|----------|-------------|----------|-------------------|
+| SEC-01 | Config | High → Mitigated | CSP plug `NetAutoWeb.Plugs.ContentSecurityPolicy` now injected into router + endpoint, covering LiveView and static assets. | Diff + `mix sobelow` (2025-11-10) shows Config.CSP cleared. | Monitor CSP changes when new assets/components are added; keep policy documented in `docs/security/csp.md`. |
+| SEC-02 | Input Validation | Medium → Mitigated | Inventory filters now use whitelist map rather than `String.to_atom/1`. | `lib/net_auto/inventory.ex` lookup map + `mix sobelow` clean run. | Extend whitelist when new query params land; add unit tests for `normalize_filter_key/1`. |
+| SEC-03 | File Handling | Medium → Mitigated | SSH adapter no longer touches arbitrary filesystem paths. Private keys stay in-memory via `NetAuto.Protocols.SSHKeyCallback`; temp user dirs handled by `Briefly`. | New module `lib/net_auto/protocols/ssh_key_callback.ex`, updated tests, and Sobelow traversal findings resolved 2025-11-10. | Enforce callback usage for any future protocol adapters; document passphrase/algorithm support in ARCHITECTURE_DECISIONS.md. |
+| SEC-04 | Input Validation | Low → Mitigated | Mishka components previously called `String.to_atom/1` for attribute filtering. All helpers now use `String.to_existing_atom/1` with rescue fallback, and the remaining generated modules live in `net_auto_ui_components/` to limit attack surface. | `lib/net_auto_web/components/{badge,button,indicator}.ex` replacements + `mix sobelow` clean run (2025-11-10 17:30 PT). | Keep future component imports inside the dependency; require `to_existing_atom` when adding new attrs. |
+| SEC-05 | CSP Exception | Known Issue | LiveView currently requires `style-src 'self' 'unsafe-inline'` for dynamic attribute patches. This exception is documented in `docs/shared/metrics.md` and must remain until Phoenix/LiveView support nonce-based styles. | router.ex, PromEx CSP plug | Track removal plan post-LiveView upgrade; note in future releases if/when removed. |
 
 ## 3. AuthZ/AuthN Posture
 Evaluate login/registration flows, Argon2 parameters, session TTL, remember-me tokens, lockouts.

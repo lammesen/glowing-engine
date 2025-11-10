@@ -11,7 +11,23 @@ defmodule NetAuto.MixProject do
       aliases: aliases(),
       deps: deps(),
       compilers: [:phoenix_live_view] ++ Mix.compilers(),
-      listeners: [Phoenix.CodeReloader]
+      listeners: [Phoenix.CodeReloader],
+      test_coverage: [
+        summary: [threshold: 85],
+        ignore_modules: [
+          NetAuto.AutomationFixtures,
+          NetAuto.InventoryFixtures,
+          NetAuto.Protocols.SSHEx,
+          NetAuto.Secrets.Dummy,
+          NetAutoWeb.CoreComponents,
+          NetAutoWeb.DeviceLive.FormComponent,
+          NetAutoWeb.ErrorHTML,
+          NetAutoWeb.PageHTML,
+          NetAutoWeb.UserRegistrationHTML,
+          NetAutoWeb.UserSessionHTML,
+          NetAutoWeb.UserSettingsHTML
+        ]
+      ]
     ]
   end
 
@@ -21,7 +37,7 @@ defmodule NetAuto.MixProject do
   def application do
     [
       mod: {NetAuto.Application, []},
-      extra_applications: [:logger, :runtime_tools, :ssl, :ssh, :oban]
+      extra_applications: [:logger, :runtime_tools, :ssl, :ssh, :oban, :briefly]
     ]
   end
 
@@ -69,13 +85,15 @@ defmodule NetAuto.MixProject do
       {:dns_cluster, "~> 0.2.0"},
       {:bandit, "~> 1.5"},
       {:argon2_elixir, "~> 4.0"},
+      {:briefly, "~> 0.5"},
       {:oban, "~> 2.17"},
       {:prom_ex, "~> 1.10"},
+      {:net_auto_ui_components, path: "../net_auto_ui_components"},
       {:mishka_chelekom, "~> 0.0.8", only: :dev},
       {:mox, "~> 1.1", only: :test},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
-      {:sobelow, "~> 0.13", only: :dev}
+      {:sobelow, "~> 0.14", only: :dev}
     ]
   end
 

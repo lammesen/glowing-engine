@@ -12,6 +12,7 @@ WORKDIR /app
 # Preload and compile deps
 COPY net_auto/mix.exs net_auto/mix.lock ./
 COPY net_auto/config ./config
+COPY net_auto_ui_components /net_auto_ui_components
 RUN mix local.hex --force && mix local.rebar --force
 RUN mix deps.get --only prod && mix deps.compile
 

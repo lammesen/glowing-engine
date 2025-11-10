@@ -39,7 +39,6 @@ if ! id "$DEVICE_USERNAME" >/dev/null 2>&1; then
 fi
 
 echo "$DEVICE_USERNAME:$DEVICE_PASSWORD" | chpasswd
-mkdir -p "$DEVICE_HOME"
 chown -R "$DEVICE_USERNAME:$DEVICE_USERNAME" "$DEVICE_HOME" || true
 chown -R "$DEVICE_USERNAME:$DEVICE_USERNAME" "$DEVICE_DATA_PATH" || true
 chmod 700 "$DEVICE_HOME"

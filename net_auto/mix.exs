@@ -72,7 +72,10 @@ defmodule NetAuto.MixProject do
       {:oban, "~> 2.17"},
       {:prom_ex, "~> 1.10"},
       {:mishka_chelekom, "~> 0.0.8", only: :dev},
-      {:mox, "~> 1.1", only: :test}
+      {:mox, "~> 1.1", only: :test},
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+      {:dialyxir, "~> 1.4", only: [:dev], runtime: false},
+      {:sobelow, "~> 0.13", only: :dev}
     ]
   end
 
@@ -95,7 +98,15 @@ defmodule NetAuto.MixProject do
         "esbuild net_auto --minify",
         "phx.digest"
       ],
-      precommit: ["compile --warning-as-errors", "deps.unlock --unused", "format", "test"]
+      precommit: [
+        "compile --warning-as-errors",
+        "deps.unlock --unused",
+        "format",
+        "credo --strict",
+        "dialyzer",
+        "sobelow -i Config.HTTPS --exit",
+        "test"
+      ]
     ]
   end
 end

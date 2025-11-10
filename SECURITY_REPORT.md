@@ -19,7 +19,9 @@ Describe actors, entry points, and assets (devices, jobs, secrets).
 ## 2. Findings Overview
 | ID | Category | Severity | Description | Evidence | Recommended Fix |
 |----|----------|----------|-------------|----------|-----------------|
-| SEC-01 | Tooling | High | `mix sobelow` task missing → security scan cannot run | CLI output "task sobelow could not be found" (2025-11-10) | Add Sobelow dependency and CI stage |
+| SEC-01 | Config | High | Missing Content-Security-Policy header in `:browser` pipeline | Sobelow Config.CSP finding (2025-11-10) | Add CSP plug defaulting to strict policy; document overrides |
+| SEC-02 | Input Validation | Medium | `String.to_atom/1` on user input in `Inventory.normalize_filter_key/1` | Sobelow DOS.StringToAtom (2025-11-10) | Use `String.to_existing_atom` whitelist or map lookup |
+| SEC-03 | File Handling | Medium | SSH adapter writes keys to arbitrary paths (`File.mkdir_p!`, `File.write!`, `File.rm_rf`) without sanitization | Sobelow Traversal.FileModule warnings (2025-11-10) | Restrict directories, validate paths, avoid rm_rf outside temp dirs |
 
 ## 3. AuthZ/AuthN Posture
 Evaluate login/registration flows, Argon2 parameters, session TTL, remember-me tokens, lockouts.

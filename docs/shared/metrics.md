@@ -30,7 +30,7 @@ Populate these once baseline data is captured. Other docs should reference the I
 ## Security (Table SM-01)
 | Control | Baseline | Target | Evidence | Notes |
 |---------|----------|--------|----------|-------|
-| Sobelow Findings | Not runnable (`mix sobelow` missing) | 0 high, 0 medium | Pending once dependency added | Add sobelow dependency + CI |
+| Sobelow Findings | High: Missing CSP header; Low: `String.to_atom`, file ops (Sobelow 0.14.1 on 2025-11-10) | 0 high, 0 medium | mix sobelow -i Config.HTTPS --exit | Harden CSP, sanitize file ops |
 | Session TTL | Not documented (Plug.Session default) | 30m idle / 12h absolute | Pending config review | Add explicit TTL + renewal |
 | Cookie Flags | store=:cookie, key="_net_auto_key", `same_site: "Lax"`, no `secure` flag | Secure + SameSite=Strict | Needs hardening | Set secure cookie, consider encryption |
 | CSP Policy | TBD | No `unsafe-inline` | TBD |  |

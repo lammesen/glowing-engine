@@ -113,7 +113,7 @@ Confirm no duplicate configs exist.
 - Create: `Dockerfile`
 - Create: `docker-compose.ci.yml`
 
-**Step 1:** Author multi-stage Dockerfile: builder uses `hexpm/elixir:1.19.0-erlang-27.0-debian-bookworm` (with Node/Yarn) to install deps, compile assets, run `mix release`; final stage based on `gcr.io/distroless/base-debian12` (or `debian:bookworm-slim`) copying release.
+**Step 1:** Author multi-stage Dockerfile: builder uses the latest published hexpm Elixir tag (currently `hexpm/elixir:1.19.0-rc.1-erlang-26.2.5.11-debian-bullseye-20251103-slim`, with Node/npm installed) to install deps, compile assets, run `mix release`; final stage based on `gcr.io/distroless/base-debian12` (or `debian:bookworm-slim`) copying release.
 
 **Step 2:** Include runtime env vars (`PHX_SERVER=true`, `SECRET_KEY_BASE`, `DATABASE_URL`). Document `ENTRYPOINT` pointing to `bin/net_auto start`.
 

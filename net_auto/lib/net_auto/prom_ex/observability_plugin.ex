@@ -24,43 +24,43 @@ defmodule NetAuto.PromEx.ObservabilityPlugin do
 
   defp runner_event_metrics(metric_prefix) do
     Event.build(:net_auto_runner_event_metrics, [
-        counter(
-          metric_prefix ++ [:start, :total],
-          event_name: [:net_auto, :runner, :start],
-          description: "Count of runner start events",
-          measurement: :count,
-          tags: [:device_id, :source, :requested_by]
-        ),
-        counter(
-          metric_prefix ++ [:stop, :total],
-          event_name: [:net_auto, :runner, :stop],
-          description: "Count of runner stop events",
-          measurement: :count,
-          tags: [:device_id, :run_id, :source, :requested_by]
-        ),
-        counter(
-          metric_prefix ++ [:error, :total],
-          event_name: [:net_auto, :runner, :error],
-          description: "Count of runner errors",
-          measurement: :count,
-          tags: [:device_id, :source, :requested_by]
-        ),
-        distribution(
-          metric_prefix ++ [:duration, :milliseconds],
-          event_name: [:net_auto, :runner, :stop],
-          description: "Runner execution duration histogram (ms)",
-          measurement: :duration_ms,
-          reporter_options: [buckets: duration_buckets_ms()],
-          tags: [:device_id, :run_id]
-        ),
-        last_value(
-          metric_prefix ++ [:bytes, :processed],
-          event_name: [:net_auto, :runner, :stop],
-          description: "Bytes processed by each runner execution",
-          measurement: :bytes,
-          tags: [:device_id, :run_id]
-        )
-      ])
+      counter(
+        metric_prefix ++ [:start, :total],
+        event_name: [:net_auto, :runner, :start],
+        description: "Count of runner start events",
+        measurement: :count,
+        tags: [:device_id, :source, :requested_by]
+      ),
+      counter(
+        metric_prefix ++ [:stop, :total],
+        event_name: [:net_auto, :runner, :stop],
+        description: "Count of runner stop events",
+        measurement: :count,
+        tags: [:device_id, :run_id, :source, :requested_by]
+      ),
+      counter(
+        metric_prefix ++ [:error, :total],
+        event_name: [:net_auto, :runner, :error],
+        description: "Count of runner errors",
+        measurement: :count,
+        tags: [:device_id, :source, :requested_by]
+      ),
+      distribution(
+        metric_prefix ++ [:duration, :milliseconds],
+        event_name: [:net_auto, :runner, :stop],
+        description: "Runner execution duration histogram (ms)",
+        measurement: :duration_ms,
+        reporter_options: [buckets: duration_buckets_ms()],
+        tags: [:device_id, :run_id]
+      ),
+      last_value(
+        metric_prefix ++ [:bytes, :processed],
+        event_name: [:net_auto, :runner, :stop],
+        description: "Bytes processed by each runner execution",
+        measurement: :bytes,
+        tags: [:device_id, :run_id]
+      )
+    ])
   end
 
   defp liveview_event_metrics do

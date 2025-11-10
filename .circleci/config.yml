@@ -356,11 +356,10 @@ workflows:
             - dialyzer
             - test
       - docker_build_push:
-        docker_push: << pipeline.parameters.docker_push >>
-        context:
-          - netauto-ci
-        requires:
-          - build_release
+          docker_push: << pipeline.parameters.docker_push >>
+          context: netauto-ci
+          requires:
+            - build_release
 
   nightly:
     triggers:
@@ -450,8 +449,7 @@ workflows:
               ignore: /.*/
       - docker_build_push:
           docker_push: true
-          context:
-            - netauto-ci
+          context: netauto-ci
           requires:
             - build_release
           filters:

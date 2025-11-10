@@ -110,16 +110,16 @@ Confirm no duplicate configs exist.
 ### Task 6: Optional Docker Assets for CI Parity
 
 **Files:**
-- Create: `net_auto/Dockerfile`
+- Create: `Dockerfile`
 - Create: `docker-compose.ci.yml`
 
-**Step 1:** Author multi-stage Dockerfile: builder uses `hexpm/elixir:1.19.0-erlang-27.0-debian-bookworm` (with Node/Yarn) to install deps, compile assets, run `mix release`; final stage based on `gcr.io/distroless/base-debian12` (or `debian:bookworm-slim`) copying release.
+**Step 1:** Author multi-stage Dockerfile: builder uses the latest published hexpm Elixir tag (currently `hexpm/elixir:1.19.0-rc.1-erlang-26.2.5.11-debian-bullseye-20251103-slim`, with Node/npm installed) to install deps, compile assets, run `mix release`; final stage based on `gcr.io/distroless/base-debian12` (or `debian:bookworm-slim`) copying release. Hex.pm has not published a Bookworm-based 1.19 builder yet, so the bullseye builder + bookworm runtime pairing is intentional—update both stages to Bookworm once a matching tag ships.
 
 **Step 2:** Include runtime env vars (`PHX_SERVER=true`, `SECRET_KEY_BASE`, `DATABASE_URL`). Document `ENTRYPOINT` pointing to `bin/net_auto start`.
 
 **Step 3:** Create `docker-compose.ci.yml` that starts app container using the local Dockerfile and a postgres service mirroring CircleCI settings. Include `depends_on` with healthcheck/wait.
 
-**Step 4:** Stage new files (`git add net_auto/Dockerfile docker-compose.ci.yml`).
+**Step 4:** Stage new files (`git add Dockerfile docker-compose.ci.yml`).
 
 ---
 
@@ -136,4 +136,3 @@ Confirm no duplicate configs exist.
 **Step 4:** Review git status (`git status -sb`) ensuring only expected files changed.
 
 **Step 5:** Prepare for commit (message `ci(circleci): full pipeline with parallel tests, security gates, MCP integration`).
-

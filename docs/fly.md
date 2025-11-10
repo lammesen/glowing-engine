@@ -1,6 +1,6 @@
 # Fly.io + Neon Deployment
 
-Deploy `net_auto/` to Fly.io as a Mix release that talks to your Neon-hosted Postgres instance. The Dockerfile under `net_auto/` builds the release, while `fly.toml` configures services and runs database migrations before each deploy.
+Deploy `net_auto/` to Fly.io as a Mix release that talks to your Neon-hosted Postgres instance. The root-level `Dockerfile` builds the release (copying sources from `net_auto/`), while `fly.toml` configures services and runs database migrations before each deploy.
 
 ## One-time setup
 
@@ -23,7 +23,7 @@ flyctl secrets set \
 ## Deploy + operations
 
 ```bash
-# Build + deploy using the Dockerfile in net_auto/
+# Build + deploy using the root Dockerfile
 flyctl deploy --config ./fly.toml --detach
 
 # Check machine + health status

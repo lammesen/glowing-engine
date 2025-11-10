@@ -113,7 +113,7 @@ Confirm no duplicate configs exist.
 - Create: `Dockerfile`
 - Create: `docker-compose.ci.yml`
 
-**Step 1:** Author multi-stage Dockerfile: builder uses the official Docker Hub tag `elixir:1.19.2` (with Node/npm installed) to install deps, compile assets, run `mix release`; final stage based on `gcr.io/distroless/base-debian12` (or `debian:bookworm-slim`) copying release.
+**Step 1:** Author multi-stage Dockerfile: builder uses the CircleCI image `cimg/elixir:1.19.1-erlang-27.2.2-node` (Node/npm preinstalled) to install deps, compile assets, run `mix release`; final stage based on `gcr.io/distroless/base-debian12` (or `debian:bookworm-slim`) copying release.
 
 **Step 2:** Include runtime env vars (`PHX_SERVER=true`, `SECRET_KEY_BASE`, `DATABASE_URL`). Document `ENTRYPOINT` pointing to `bin/net_auto start`.
 

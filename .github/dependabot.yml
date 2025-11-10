@@ -1,0 +1,31 @@
+version: 2
+  updates:
+    # Root-level npm helpers (package.json / package-lock.json)
+    - package-ecosystem: "npm"
+      directory: "/"
+      schedule:
+        interval: "weekly"
+
+    # Phoenix asset tooling under net_auto/assets/
+    - package-ecosystem: "npm"
+      directory: "/net_auto/assets"
+      schedule:
+        interval: "weekly"
+
+    # Main Phoenix app (Mix)
+    - package-ecosystem: "mix"
+      directory: "/net_auto"
+      schedule:
+        interval: "weekly"
+
+    # Shared UI component library (Mix)
+    - package-ecosystem: "mix"
+      directory: "/net_auto_ui_components"
+      schedule:
+        interval: "weekly"
+
+    # GitHub Actions workflows
+    - package-ecosystem: "github-actions"
+      directory: "/"
+      schedule:
+        interval: "weekly"

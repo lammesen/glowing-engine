@@ -1,131 +1,331 @@
-name: NetAuto CI
+name: CI
 
 on:
   push:
-    branches: [main, chore/**, feature/**]
+    branches: ['**']
+    tags: ['v*']
   pull_request:
-    branches: [main]
+  workflow_dispatch:
+    inputs:
+      docker_push:
+        description: 'Build & push image to GHCR'
+        type: boolean
+        default: false
+  schedule:
+    - cron: '0 2 * * *' # nightly
+
+env:
+  ELIXIR_VERSION: '1.19.1'
+  OTP_VERSION: '27.2.2'
+  NODE_VERSION: '20'
+  MIX_ENV: 'test'
+  COVERAGE_THRESHOLD: '85'
+  TEST_PARTITIONS: '4' # keep matrix in sync
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    env:
-      PGHOST: localhost
-      PGUSER: postgres
-      PGPASSWORD: postgres
-      PGDATABASE: net_auto_test
-      MIX_ENV: dev
+  # Detect docs-only changes to short-circuit heavy jobs.
+  changes:
+    runs-on: ubuntu-24.04
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            code:
+              - '**'
+              - '!docs/**'
+              - '!.github/**'
+              - '!**/*.md'
+              - '!LICENSE'
+              - '!CHANGELOG.*'
+
+  lint:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: net_auto
+    steps:
+      - uses: actions/checkout@v4
+      - id: beam
+        uses: erlef/setup-beam@v1
+        with:
+          otp-version: ${{ env.OTP_VERSION }}
+          elixir-version: ${{ env.ELIXIR_VERSION }}
+          version-type: strict
+      - uses: actions/cache@v4
+        with:
+          path: |
+            net_auto/deps
+            net_auto/_build
+          key: mix-${{ runner.os }}-${{ hashFiles('net_auto/mix.lock') }}-${{ steps.beam.outputs.otp-version }}-${{ steps.beam.outputs.elixir-version }}
+          restore-keys: |
+            mix-${{ runner.os }}-
+      - run: mix local.hex --force && mix local.rebar --force
+      - run: mix deps.get
+      - run: mix compile --warnings-as-errors
+      - run: mix format --check-formatted
+      - run: mix credo --strict
+
+  security:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: net_auto
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: ${{ env.OTP_VERSION }}
+          elixir-version: ${{ env.ELIXIR_VERSION }}
+          version-type: strict
+      - uses: actions/cache@v4
+        with:
+          path: |
+            net_auto/deps
+            net_auto/_build
+          key: mix-${{ runner.os }}-${{ hashFiles('net_auto/mix.lock') }}-${{ env.OTP_VERSION }}-${{ env.ELIXIR_VERSION }}
+          restore-keys: |
+            mix-${{ runner.os }}-
+      - run: mix deps.get
+      - run: mix sobelow -i Config.HTTPS --exit
+      - run: mix deps.audit --format short
+
+  dialyzer:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: net_auto
+    steps:
+      - uses: actions/checkout@v4
+      - id: beam
+        uses: erlef/setup-beam@v1
+        with:
+          otp-version: ${{ env.OTP_VERSION }}
+          elixir-version: ${{ env.ELIXIR_VERSION }}
+          version-type: strict
+      - uses: actions/cache@v4
+        with:
+          path: |
+            net_auto/deps
+            net_auto/_build
+          key: mix-${{ runner.os }}-${{ hashFiles('net_auto/mix.lock') }}-${{ steps.beam.outputs.otp-version }}-${{ steps.beam.outputs.elixir-version }}
+          restore-keys: |
+            mix-${{ runner.os }}-
+      - uses: actions/cache@v4
+        with:
+          path: net_auto/_build/plts
+          key: plts-${{ runner.os }}-${{ hashFiles('net_auto/mix.lock') }}-${{ steps.beam.outputs.otp-version }}-${{ steps.beam.outputs.elixir-version }}
+          restore-keys: |
+            plts-${{ runner.os }}-
+      - run: mix deps.get
+      - run: mix dialyzer --plt
+      - run: mix dialyzer --format short
+
+  # Sharded tests across N partitions using ExUnit native partitioning.
+  test:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        partition: [1, 2, 3, 4] # keep in sync with TEST_PARTITIONS
     services:
       postgres:
-        image: postgres:15
-        ports:
-          - 5432:5432
+        image: postgres:16
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: net_auto_test
         options: >-
-          --health-cmd "pg_isready -U postgres" --health-interval 10s --health-timeout 5s --health-retries 5
-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+        ports: ['5432:5432']
+    env:
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGHOST: localhost
+      PGPORT: ${{ job.services.postgres.ports[5432] }}
+      PGDATABASE: net_auto_test
+      MIX_TEST_PARTITION: ${{ matrix.partition }}
+    defaults:
+      run:
+        working-directory: net_auto
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Elixir
+      - id: beam
         uses: erlef/setup-beam@v1
         with:
-          elixir-version: 1.19.2
-          otp-version: 28.1.1
-
-      - name: Cache deps
-        uses: actions/cache@v4
+          otp-version: ${{ env.OTP_VERSION }}
+          elixir-version: ${{ env.ELIXIR_VERSION }}
+          version-type: strict
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - uses: actions/cache@v4
         with:
           path: |
             net_auto/deps
-          key: ${{ runner.os }}-deps-${{ hashFiles('net_auto/mix.lock') }}
-          restore-keys: ${{ runner.os }}-deps-
-
-      - name: Cache build
-        uses: actions/cache@v4
-        with:
-          path: |
             net_auto/_build
-          key: ${{ runner.os }}-build-${{ env.MIX_ENV }}-${{ hashFiles('net_auto/mix.lock') }}
-          restore-keys: ${{ runner.os }}-build-
-
-      - name: Cache dialyzer PLTs
-        uses: actions/cache@v4
-        with:
-          path: |
-            net_auto/dialyxir_*plt*
-          key: ${{ runner.os }}-dialyzer-${{ hashFiles('net_auto/mix.lock') }}
-          restore-keys: ${{ runner.os }}-dialyzer-
-
-      - name: Install deps
-        working-directory: net_auto
+          key: mix-${{ runner.os }}-${{ hashFiles('net_auto/mix.lock') }}-${{ steps.beam.outputs.otp-version }}-${{ steps.beam.outputs.elixir-version }}
+          restore-keys: |
+            mix-${{ runner.os }}-
+      - name: Install client tools
         run: |
-          mix local.hex --force
-          mix local.rebar --force
-          mix deps.get
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends postgresql-client jq
+      - name: Wait for Postgres
+        run: |
+          for i in $(seq 1 60); do
+            if pg_isready -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" >/dev/null 2>&1; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Postgres did not become ready" >&2
+          exit 1
+      - run: mix deps.get
+      - run: MIX_ENV=test mix ecto.create --quiet
+      - run: MIX_ENV=test mix ecto.migrate --quiet
+      - name: Run tests for partition ${{ matrix.partition }}/${{ env.TEST_PARTITIONS }}
+        run: mix test --color --max-failures 1 --partitions ${{ env.TEST_PARTITIONS }} --cover --export-coverage partition-${{ matrix.partition }}
+      - name: Upload coverdata for aggregation
+        uses: actions/upload-artifact@v4
+        with:
+          name: cover-partition-${{ matrix.partition }}
+          path: net_auto/cover/partition-${{ matrix.partition }}.coverdata
+          if-no-files-found: error
 
-      - name: Compile
+  # Aggregate coverage from all partitions, enforce threshold, and publish a JSON report.
+  coverage_gate:
+    needs: [test]
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
         working-directory: net_auto
-        env:
-          MIX_ENV: dev
-        run: mix compile --warnings-as-errors
-
-      - name: Check format
-        working-directory: net_auto
-        run: mix format --check-formatted
-
-      - name: Credo
-        working-directory: net_auto
-        env:
-          MIX_ENV: dev
-        run: mix credo --strict
-
-      - name: Dialyzer
-        working-directory: net_auto
-        env:
-          MIX_ENV: dev
-        run: mix dialyzer
-
-      - name: Sobelow
-        working-directory: net_auto
-        run: mix sobelow -i Config.HTTPS --exit
-        env:
-          MIX_ENV: dev
-
-      - name: Test
-        working-directory: net_auto
-        env:
-          MIX_ENV: test
-        run: mix test --cover
-
-  docker-sim-image:
-    name: Build Cisco sim image (Docker Cloud)
-    runs-on: ubuntu-latest
-    needs: build
     steps:
       - uses: actions/checkout@v4
-
-      - name: Log in to Docker Hub
-        if: github.event_name != 'pull_request'
-        uses: docker/login-action@v3
+      - id: beam
+        uses: erlef/setup-beam@v1
         with:
-          username: ${{ vars.DOCKER_USER }}
-          password: ${{ secrets.DOCKER_PAT }}
-
-      - name: Set up Docker Build Cloud builder
-        uses: docker/setup-buildx-action@v3
+          otp-version: ${{ env.OTP_VERSION }}
+          elixir-version: ${{ env.ELIXIR_VERSION }}
+          version-type: strict
+      - uses: actions/cache@v4
         with:
-          driver: cloud
-          endpoint: "mlammesen/netauto-builder"
-
-      - name: Build and (optionally) push sim image
-        uses: docker/build-push-action@v6
+          path: |
+            net_auto/deps
+            net_auto/_build
+          key: mix-${{ runner.os }}-${{ hashFiles('net_auto/mix.lock') }}-${{ steps.beam.outputs.otp-version }}-${{ steps.beam.outputs.elixir-version }}
+          restore-keys: |
+            mix-${{ runner.os }}-
+      - run: mix deps.get && mix compile
+      - name: Download coverdata from all partitions
+        uses: actions/download-artifact@v4
         with:
-          context: ./sim_devices
-          file: ./sim_devices/Dockerfile
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: |
-            ${{ vars.DOCKER_USER }}/netauto-sim:latest
-            ${{ vars.DOCKER_USER }}/netauto-sim:${{ github.sha }}
+          path: net_auto/cover
+      - name: Aggregate coverage and gate
+        run: |
+          # Aggregate without re-running tests, import all *.coverdata from cover/
+          mix coveralls --no-start --exclude test --import-cover cover | tee coverage.out
+          # Generate JSON too (handy for tooling)
+          mix coveralls.json --no-start --exclude test --import-cover cover
+
+          THRESHOLD="${COVERAGE_THRESHOLD}"
+          TOTAL=$(awk '/TOTAL/ { gsub("%","",$NF); print $NF }' coverage.out | tail -1)
+          echo "Aggregated coverage: ${TOTAL}% (threshold: ${THRESHOLD}%)"
+          awk -v cov="$TOTAL" -v thr="$THRESHOLD" 'BEGIN { exit (cov+0 >= thr+0) ? 0 : 1 }'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: |
+            net_auto/cover/excoveralls.json
+            net_auto/coverage.out
+
+  # Build production release (assets + mix release).
+  build_release:
+    needs: [lint, security, dialyzer, coverage_gate]
+    if: always() && needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-24.04
+    env:
+      MIX_ENV: prod
+    defaults:
+      run:
+        working-directory: net_auto
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: ${{ env.OTP_VERSION }}
+          elixir-version: ${{ env.ELIXIR_VERSION }}
+          version-type: strict
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - uses: actions/cache@v4
+        with:
+          path: |
+            net_auto/deps
+            net_auto/_build
+          key: mix-${{ runner.os }}-${{ hashFiles('net_auto/mix.lock') }}-${{ env.OTP_VERSION }}-${{ env.ELIXIR_VERSION }}-prod
+          restore-keys: |
+            mix-${{ runner.os }}-
+      - run: mix deps.get
+      - run: mix compile --warnings-as-errors
+      - run: mix assets.deploy
+      - run: mix release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release
+          path: net_auto/_build/prod/rel
+
+  # Docker image build + optional push to GHCR. Builds from repo root (Dockerfile lives there).
+  docker_build_push:
+    needs: [build_release]
+    if: >
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) ||
+      (github.event_name == 'workflow_dispatch' && inputs.docker_push == true)
+    runs-on: ubuntu-24.04
+    env:
+      IMAGE: ghcr.io/${{ github.repository }}:${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ env.IMAGE }}
+
+  # Gated deploy placeholder. Attach an environment with required reviewers for manual approval.
+  deploy_stub:
+    needs: [docker_build_push]
+    if: always()
+    runs-on: ubuntu-24.04
+    environment: production
+    steps:
+      - run: echo "Deploy stub - replace with real deployment."

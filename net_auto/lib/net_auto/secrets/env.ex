@@ -59,15 +59,20 @@ defmodule NetAuto.Secrets.Env do
 
   defp resolve_private_key(base_key) do
     case {env(base_key <> "_PRIVKEY"), env(base_key <> "_PRIVKEY_BASE64")} do
-      {key, nil} when is_binary(key) -> key
+      {key, nil} when is_binary(key) ->
+        key
+
       {nil, encoded} when is_binary(encoded) ->
         case Base.decode64(encoded) do
           {:ok, decoded} -> decoded
           :error -> nil
         end
 
-      {key, _encoded} when is_binary(key) -> key
-      _ -> nil
+      {key, _encoded} when is_binary(key) ->
+        key
+
+      _ ->
+        nil
     end
   end
 end

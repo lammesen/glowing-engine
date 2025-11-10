@@ -17,8 +17,8 @@ Capture architectural, dependency, performance, and security findings for NetAut
 ## 1. Executive Summary
 - Build baseline (2025-11-10): `mix compile --warnings-as-errors` completed cleanly on existing Elixir/OTP toolchain; no warnings observed.
 - Tooling guardrails now wired up but red:
-  - Credo reports missing `@moduledoc` tags, alias ordering, and deeply nested `cond` blocks.
-  - Dialyzer surfaces missing struct types and impossible pattern matches in RetentionWorker.
+  - Credo clean locally (2025-11-10); keep watch via CI.
+  - Dialyzer passes after adding struct typespecs and RetentionWorker fixes.
   - Sobelow highlights missing CSP headers and potential traversal/String.to_atom issues in `Inventory` and SSH adapter.
 - Seeds no longer pollute test data: `priv/repo/seeds.exs` now skips inserts when `Mix.env() == :test`, and Inventory tests rely on fixtures.
 - Test runner stability: Oban peers/plugins disabled in `:test`, so `mix test --cover` no longer crashes the SQL sandbox.
@@ -45,7 +45,7 @@ Reference diagrams in `docs/shared/context-map.md`, highlighting contexts, LiveV
 | ID | Component | Issue | Evidence | Impact | Recommendation | Tests Needed |
 |----|-----------|-------|----------|--------|----------------|--------------|
 | CR-01 | Tooling | `mix credo --strict` fails with readability/refactor issues | Credo 1.7.13 output (2025-11-10) listing missing `@moduledoc`, alias order, cond misuse, etc. | **Resolved locally (2025-11-10)** – lint passes after module docs/alias cleanup; leave finding for monitoring until merged | Keep docs/alias hygiene enforced; run credo in CI | Add regression tests for modules touched |
-| CR-02 | Tooling | Dialyzer reports type errors + missing specs | `mix dialyzer` (2025-11-10) flagged pattern matches in RetentionWorker + unknown types for `Run.t`, `Device.t`, `Adapter` specs | Type safety guardrail failing; blocks precommit + CI | Add `@type t` for key structs, fix pattern matches, add dialyzer ignores only if justified | Ensure dialyzer runs in CI |
+| CR-02 | Tooling | Dialyzer reports type errors + missing specs | `mix dialyzer` (2025-11-10) initially flagged pattern matches + missing types; now fixed and gate passes locally | **Resolved locally (2025-11-10)** – keep Dialyzer in CI to prevent regressions | Enforce struct typespecs for new schemas | Ensure dialyzer runs in CI |
 | CR-03 | Security | Sobelow finds missing CSP + unsafe File/String usage | `mix sobelow -i Config.HTTPS --exit` (2025-11-10) flagged Config.CSP (High) + traversal/String.to_atom warnings | Security gate red; CSP + file handling need remediation before release | Implement CSP headers, sanitize file paths, avoid `String.to_atom` | Add regression tests / security checks |
 | CR-04 | Testing | Coverage gate failing (`mix test --cover`) | Coverage 81.25% (2025-11-10) < 90% threshold; Oban sandbox stabilized but guardrail unmet | Violates modernization guardrail; risks regressions | Continue adding LiveView flows (/devices bulk events) and context unit tests until ≥85% | Add tests for `/`, `/devices`, `/bulk/<ref>` plus context coverage |
 | CR-05 | Testing | Inventory fixtures not isolated | `NetAuto.InventoryTest` previously relied on seeded data; seeds now skipped in test env (2025-11-10) | Mitigated, but enforce fixture usage in future suites | Keep seeds guarded; rely on fixtures + sandbox helpers | Add regression tests ensuring clean DB per test |

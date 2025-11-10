@@ -27,7 +27,7 @@ defmodule NetAuto.MixProject do
 
   def cli do
     [
-      preferred_envs: [precommit: :test]
+      preferred_envs: [precommit: :test, dialyzer: :dev]
     ]
   end
 
@@ -103,7 +103,7 @@ defmodule NetAuto.MixProject do
         "deps.unlock --unused",
         "format",
         "credo --strict",
-        "dialyzer",
+        "cmd sh -c 'MIX_ENV=dev mix dialyzer'",
         "sobelow -i Config.HTTPS --exit",
         "test"
       ]

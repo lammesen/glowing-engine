@@ -27,9 +27,6 @@ defmodule NetAuto.Automation.RetentionWorker do
     :ok
   end
 
-  defp purge_by_age(:infinity), do: {0, 0}
-  defp purge_by_age(nil), do: {0, 0}
-
   defp purge_by_age(days) when is_integer(days) and days > 0 do
     cutoff =
       DateTime.utc_now()
@@ -53,7 +50,6 @@ defmodule NetAuto.Automation.RetentionWorker do
   defp purge_by_age(_), do: {0, 0}
 
   defp purge_by_bytes(:infinity), do: {0, 0}
-  defp purge_by_bytes(nil), do: {0, 0}
 
   defp purge_by_bytes(limit) when is_integer(limit) and limit > 0 do
     device_totals(limit)

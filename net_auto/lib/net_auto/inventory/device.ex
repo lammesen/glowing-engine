@@ -11,6 +11,23 @@ defmodule NetAuto.Inventory.Device do
 
   @protocol_values [:ssh, :telnet]
 
+  @typedoc "Managed network device metadata"
+  @type protocol :: :ssh | :telnet
+  @type t :: %__MODULE__{
+          id: integer() | nil,
+          hostname: String.t() | nil,
+          ip: String.t() | nil,
+          protocol: protocol(),
+          port: integer() | nil,
+          username: String.t() | nil,
+          cred_ref: String.t() | nil,
+          vendor: String.t() | nil,
+          model: String.t() | nil,
+          site: String.t() | nil,
+          tags: map(),
+          metadata: map()
+        }
+
   schema "devices" do
     field :hostname, :string
     field :ip, :string

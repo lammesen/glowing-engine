@@ -280,7 +280,6 @@ defmodule NetAuto.Automation do
 
     case DateTime.from_iso8601(trimmed) do
       {:ok, dt, _offset} -> DateTime.truncate(dt, :second)
-      {:ok, dt} -> DateTime.truncate(dt, :second)
       {:error, _} -> nil
     end
   end
@@ -468,10 +467,11 @@ defmodule NetAuto.Automation do
 
   defp insert_bulk_jobs(jobs, bulk_ref) do
     case Oban.insert_all(jobs) do
-      {:ok, inserted} -> {:ok, %{bulk_ref: bulk_ref, jobs: inserted}}
-      {:error, reason} -> {:error, reason}
       inserted when is_list(inserted) -> {:ok, %{bulk_ref: bulk_ref, jobs: inserted}}
+      %Ecto.Multi{} = multi -> {:ok, %{bulk_ref: bulk_ref, jobs: multi}}
     end
+  rescue
+    exception -> {:error, exception}
   end
 
   defp maybe_put_requested_by(args, nil), do: args

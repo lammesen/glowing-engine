@@ -11,6 +11,23 @@ defmodule NetAuto.Automation.Run do
 
   @status_values [:pending, :running, :ok, :error]
 
+  @typedoc "Automation run record"
+  @type status :: :pending | :running | :ok | :error
+  @type t :: %__MODULE__{
+          id: integer() | nil,
+          command: String.t(),
+          status: status(),
+          bytes: integer() | nil,
+          exit_code: integer() | nil,
+          requested_by: String.t() | nil,
+          requested_at: DateTime.t() | nil,
+          started_at: DateTime.t() | nil,
+          finished_at: DateTime.t() | nil,
+          error_reason: String.t() | nil,
+          device_id: integer() | nil,
+          command_template_id: integer() | nil
+        }
+
   schema "runs" do
     field :command, :string
     field :status, Ecto.Enum, values: @status_values, default: :pending

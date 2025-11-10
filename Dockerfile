@@ -29,7 +29,7 @@ RUN mix compile && mix release
 FROM debian:bookworm-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    openssl ca-certificates ncurses bash libstdc++6 && rm -rf /var/lib/apt/lists/*
+    openssl ca-certificates ncurses-bin bash libstdc++6 && rm -rf /var/lib/apt/lists/*
 
 ENV MIX_ENV=prod PHX_SERVER=true PORT=8080
 WORKDIR /app

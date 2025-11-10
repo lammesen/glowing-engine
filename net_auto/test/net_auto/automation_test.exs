@@ -4,6 +4,7 @@ defmodule NetAuto.AutomationTest do
   alias NetAuto.Automation
   alias NetAuto.AutomationFixtures
   alias NetAuto.InventoryFixtures
+  alias NetAuto.Inventory.Device
   alias NetAuto.Repo
   alias Oban.Job
   import Mox
@@ -197,6 +198,25 @@ defmodule NetAuto.AutomationTest do
       end)
 
       assert Repo.aggregate(Job, :count, :id) == 2
+    end
+
+    test "accepts string device ids and deduplicates" do
+      id = InventoryFixtures.device_fixture().id
+
+      assert {:ok, %{jobs: [%{args: %{"device_ids" => ids}}]}} =
+               Automation.bulk_enqueue("show version", ["  #{id}  ", id, %Device{id: id}])
+
+      assert ids == [id]
+    end
+
+    test "normalizes chunk size option" do
+      device_ids = Enum.map(1..3, fn _ -> InventoryFixtures.device_fixture().id end)
+
+      assert {:ok, %{jobs: jobs}} =
+               Automation.bulk_enqueue("show version", device_ids, chunk_size: 1)
+
+      assert length(jobs) == 3
+      assert Enum.all?(jobs, fn job -> length(job.args["device_ids"]) == 1 end)
     end
   end
 

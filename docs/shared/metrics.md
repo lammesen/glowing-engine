@@ -5,7 +5,7 @@ Populate these once baseline data is captured. Other docs should reference the I
 ## Test Coverage (Table TM-01)
 | Layer | Target % | Baseline % | Evidence Link | Notes |
 |-------|----------|------------|---------------|-------|
-| Unit | 90 | 79.84 | mix test --cover (2025-11-10) | Fails threshold; LiveView/integration gaps |
+| Unit | 90 | 80.78 | mix test --cover (2025-11-10) | Improved via LiveView + context tests; still < guardrail |
 | LiveView | 85 | TBD | TBD |  |
 | Integration | 80 | TBD | TBD |  |
 | Property | 70 | TBD | TBD |  |

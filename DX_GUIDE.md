@@ -23,7 +23,7 @@ Document `mix setup`, `mix precommit`, `bin/dev`, Cisco simulator scripts, Makef
 
 - Observed command behavior (2025-11-10):
   - `mix test --cover` fails due to `NetAuto.InventoryTest.list_devices/0` expecting isolated data; seeds insert five devices. Capture fixtures per test (CR-05).
-  - Coverage output 79.84%, below 90% guardrail; treat as failing build until addressed.
+  - Coverage output 80.78% after LiveView + context tests; still below ≥85% guardrail, so keep treating as failing build until addressed.
   - `mix credo --strict` now runs but reports missing `@moduledoc` tags, alias ordering issues, and nested `cond` blocks (CR-01).
   - `mix dialyzer` builds PLTs then fails on missing type specs (`Run.t`, `Device.t`) and impossible matches in RetentionWorker (CR-02).
   - `mix sobelow -i Config.HTTPS --exit` highlights missing CSP header plus potential traversal/string-to-atom vectors (CR-03/SEC-01..03).

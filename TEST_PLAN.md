@@ -16,13 +16,16 @@ Define testing strategy (unit, LiveView, integration, property) that guarantees 
 ## 1. Coverage Targets
 Specify minimum coverage per layer and mapping to CI gates.
 
-- Baseline (2025-11-10) `mix test --cover`: 79.84% overall — below 90% target, triggering CR-03. Additional LiveView and integration tests required before enabling gate.
+- Baseline (2025-11-10) `mix test --cover`: 80.78% overall after LiveView smoke tests + context fixtures — still below ≥85% guardrail (CR-04). Continue expanding LiveView flows and context/unit suites until coverage gate passes locally and in CI.
 
 ## 2. Fixtures & Factories
 Document ExMachina usage, data-case helpers, and LazyHTML selectors for LiveView tests.
 
 ## 3. Critical Journeys
-Outline smoke flows for `/`, `/devices`, `/bulk/<ref>` including auth guards, events, and stream assertions.
+Outline smoke flows for `/`, `/devices`, `/bulk/<ref>` including auth guards, events, and stream assertions. Tests now cover:
+- Unauthorized visitors redirected to `/users/log-in` for `/`, `/devices`, `/bulk/<ref>`.
+- `/devices` lists/searches devices, opens modal, enqueues bulk runs, and listens for PubSub updates.
+- `/bulk/<ref>` receives progress + summary events.
 
 ## 4. Tooling Matrix
 | Command | Purpose | When to Run | Evidence |

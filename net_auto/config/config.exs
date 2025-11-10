@@ -27,6 +27,7 @@ config :net_auto,
 config :net_auto, NetAuto.Secrets,
   adapter: NetAuto.Secrets.Env,
   adapters: [env: NetAuto.Secrets.Env]
+
 config :net_auto, NetAuto.Protocols, adapter: NetAuto.Protocols.SSHAdapter
 config :net_auto, NetAuto.Protocols.SSHAdapter, ssh: NetAuto.Protocols.SSHEx
 

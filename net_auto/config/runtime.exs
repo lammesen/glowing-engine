@@ -25,7 +25,9 @@ grafana_token = System.get_env("PROMEX_GRAFANA_API_KEY")
 grafana_folder = System.get_env("PROMEX_GRAFANA_FOLDER") || "NetAuto"
 
 parse_positive_integer = fn
-  nil, default -> default
+  nil, default ->
+    default
+
   value, default ->
     case Integer.parse(value) do
       {int, _} when int > 0 -> int

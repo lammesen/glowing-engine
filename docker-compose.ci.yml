@@ -1,0 +1,33 @@
+version: "3.9"
+
+services:
+  db:
+    image: cimg/postgres:16.3
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: net_auto_test
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    ports:
+      - "54320:5432"
+
+  app:
+    image: cimg/elixir:1.19.0-node
+    working_dir: /workspace/net_auto
+    environment:
+      MIX_ENV: test
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGHOST: db
+      PGDATABASE: net_auto_test
+    volumes:
+      - ./:/workspace
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >-
+      bash -lc "mix deps.get && MIX_ENV=test mix ecto.create --quiet && MIX_ENV=test mix ecto.migrate --quiet && mix test --color"

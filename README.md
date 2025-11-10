@@ -1,5 +1,9 @@
 # Glowing Engine – NetAuto WS01 Bootstrap
 
+[![CircleCI](https://dl.circleci.com/status-badge/img/gh/lammesen/glowing-engine/tree/main.svg?style=shield)](https://dl.circleci.com/status-badge/redirect/gh/lammesen/glowing-engine/tree/main)
+![Coverage](https://img.shields.io/badge/coverage-%E2%89%A585%25-brightgreen)
+[![Latest Release](https://img.shields.io/github/v/release/lammesen/glowing-engine?display_name=tag&sort=semver)](https://github.com/lammesen/glowing-engine/releases)
+
 This repo hosts the Network Automation Platform reboot (Phoenix + LiveView + Mishka Chelekom). The WS01 deliverable scaffolds the Phoenix app, auth, HTTPS, and baseline docs so other workstreams can build on top.
 
 ## Quick start
@@ -31,6 +35,13 @@ The `precommit` alias chains all of the above (plus compile warnings, deps unloc
 3. Kick off a bulk run to land on `/bulk/<ref>` and capture the progress dashboard the same way. Save the images under `docs/screenshots/` (gitignored) and attach them to PRs/issues as needed.
 
 *Need certificates?* Run `mkcert -install` (once per machine) and then `mkcert -key-file priv/cert/localhost-key.pem -cert-file priv/cert/localhost-cert.pem localhost 127.0.0.1 ::1` inside `net_auto/` to refresh `priv/cert/*.pem` (ignored by git).
+
+## AI + CI
+
+- CircleCI pipelines live in `.circleci/config.yml` and are documented in `docs/ci.md` (workflows, contexts, parameters, cache keys, and usage for the helper scripts under `scripts/ci/`).
+- `docs/mcp.md` shows how to start the CircleCI MCP server through the Docker MCP Toolkit so AI copilots can validate configs, pull failing job logs, and answer “what failed on my last build?” safely.
+- GitHub PRs run the `ci` workflow automatically; required checks cover `lint`, `security`, `dialyzer`, `test`, and `build_release`. Tags that match `v*` trigger the `release` workflow, GHCR pushes, and the approval-gated `deploy_stub` placeholder.
+- Mirror CI locally by running `mix coveralls.json` followed by `scripts/ci/coverage_gate.sh 85 cover/excoveralls.json`, or use `docker-compose.ci.yml` for the same Elixir/Postgres topology used in CircleCI.
 
 ## Dev HTTPS
 

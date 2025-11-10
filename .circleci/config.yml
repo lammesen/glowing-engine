@@ -1,31 +1,472 @@
-# Use the latest 2.1 version of CircleCI pipeline process engine.
-# See: https://circleci.com/docs/reference/configuration-reference
 version: 2.1
 
-# Define a job to be invoked later in a workflow.
-# See: https://circleci.com/docs/guides/orchestrate/jobs-steps/#jobs-overview & https://circleci.com/docs/reference/configuration-reference/#jobs
-jobs:
-  say-hello:
-    # Specify the execution environment. You can specify an image from Docker Hub or use one of our convenience images from CircleCI's Developer Hub.
-    # See: https://circleci.com/docs/guides/execution-managed/executor-intro/ & https://circleci.com/docs/reference/configuration-reference/#executor-job
-    docker:
-      # Specify the version you desire here
-      # See: https://circleci.com/developer/images/image/cimg/base
-      - image: cimg/base:current
+parameters:
+  docker_push:
+    type: boolean
+    default: false
+  parallel_tests:
+    type: integer
+    default: 4
+  pg_version:
+    type: string
+    default: "16.3"
+  elixir_image_tag:
+    type: string
+    default: "1.19.0-node"
 
-    # Add steps to the job
-    # See: https://circleci.com/docs/guides/orchestrate/jobs-steps/#steps-overview & https://circleci.com/docs/reference/configuration-reference/#steps
+commands:
+  checkout_repo:
+    description: Checkout repository into ~/project
     steps:
-      # Checkout the code as the first step.
-      - checkout
-      - run:
-          name: "Say hello"
-          command: "echo Hello, World!"
+      - checkout:
+          path: ~/project
 
-# Orchestrate jobs using workflows
-# See: https://circleci.com/docs/guides/orchestrate/workflows/ & https://circleci.com/docs/reference/configuration-reference/#workflows
+  restore_mix_cache:
+    parameters:
+      cache_key:
+        type: string
+    steps:
+      - restore_cache:
+          keys:
+            - << parameters.cache_key >>
+            - v1-mix-deps-
+
+  save_mix_cache:
+    parameters:
+      cache_key:
+        type: string
+    steps:
+      - save_cache:
+          key: << parameters.cache_key >>
+          paths:
+            - deps
+
+  restore_build_cache:
+    parameters:
+      cache_key:
+        type: string
+    steps:
+      - restore_cache:
+          keys:
+            - << parameters.cache_key >>
+            - v1-build-
+
+  save_build_cache:
+    parameters:
+      cache_key:
+        type: string
+    steps:
+      - save_cache:
+          key: << parameters.cache_key >>
+          paths:
+            - _build
+
+  wait_for_postgres:
+    steps:
+      - run:
+          name: Wait for Postgres
+          command: |
+            for i in $(seq 1 30); do
+              if pg_isready --timeout=2 >/dev/null 2>&1; then
+                echo "Postgres is ready"
+                exit 0
+              fi
+              echo "Waiting for Postgres... ($i/30)"
+              sleep 1
+            done
+            echo "Postgres never became ready" >&2
+            exit 1
+
+jobs:
+  setup:
+    docker:
+      - image: cimg/elixir:<< pipeline.parameters.elixir_image_tag >>
+    working_directory: ~/project/net_auto
+    steps:
+      - checkout_repo
+      - run:
+          name: Install local Hex/Rebar
+          command: |
+            mix local.hex --force
+            mix local.rebar --force
+      - persist_to_workspace:
+          root: ~/project
+          paths:
+            - .
+
+  deps:
+    docker:
+      - image: cimg/elixir:<< pipeline.parameters.elixir_image_tag >>
+        environment:
+          MIX_ENV: dev
+      - image: cimg/postgres:<< pipeline.parameters.pg_version >>
+        environment:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: net_auto_test
+    working_directory: ~/project/net_auto
+    steps:
+      - attach_workspace:
+          at: ~/project
+      - run:
+          name: Detect docs-only changes
+          command: |
+            if ../scripts/ci/detect_changed_paths.sh; then
+              echo "Docs-only change detected; halting remaining steps."
+              circleci-agent step halt
+            fi
+      - restore_mix_cache:
+          cache_key: v1-mix-deps-<< pipeline.parameters.elixir_image_tag >>-{{ checksum "mix.lock" }}
+      - restore_build_cache:
+          cache_key: v1-build-<< pipeline.parameters.elixir_image_tag >>-{{ checksum "mix.lock" }}
+      - run:
+          name: Install deps
+          command: |
+            mix deps.get
+            mix deps.compile
+      - save_mix_cache:
+          cache_key: v1-mix-deps-<< pipeline.parameters.elixir_image_tag >>-{{ checksum "mix.lock" }}
+      - save_build_cache:
+          cache_key: v1-build-<< pipeline.parameters.elixir_image_tag >>-{{ checksum "mix.lock" }}
+      - persist_to_workspace:
+          root: ~/project
+          paths:
+            - .
+
+  lint:
+    docker:
+      - image: cimg/elixir:<< pipeline.parameters.elixir_image_tag >>
+        environment:
+          MIX_ENV: dev
+    working_directory: ~/project/net_auto
+    steps:
+      - attach_workspace:
+          at: ~/project
+      - restore_build_cache:
+          cache_key: v1-build-<< pipeline.parameters.elixir_image_tag >>-{{ checksum "mix.lock" }}
+      - run:
+          name: Compile + format + credo
+          command: |
+            mix compile --warnings-as-errors
+            mix format --check-formatted
+            mix credo --strict
+
+  dialyzer:
+    docker:
+      - image: cimg/elixir:<< pipeline.parameters.elixir_image_tag >>
+        environment:
+          MIX_ENV: dev
+    working_directory: ~/project/net_auto
+    steps:
+      - attach_workspace:
+          at: ~/project
+      - restore_mix_cache:
+          cache_key: v1-mix-deps-<< pipeline.parameters.elixir_image_tag >>-{{ checksum "mix.lock" }}
+      - restore_build_cache:
+          cache_key: v1-build-<< pipeline.parameters.elixir_image_tag >>-{{ checksum "mix.lock" }}
+      - restore_cache:
+          keys:
+            - v1-dialyzer-plts-<< pipeline.parameters.elixir_image_tag >>-{{ checksum "mix.lock" }}
+      - run:
+          name: Build PLTs if missing
+          command: |
+            mix dialyzer --plt
+      - save_cache:
+          key: v1-dialyzer-plts-<< pipeline.parameters.elixir_image_tag >>-{{ checksum "mix.lock" }}
+          paths:
+            - _build/plts
+      - run:
+          name: Run dialyzer
+          command: |
+            mix dialyzer --format short
+
+  security:
+    docker:
+      - image: cimg/elixir:<< pipeline.parameters.elixir_image_tag >>
+        environment:
+          MIX_ENV: dev
+    working_directory: ~/project/net_auto
+    steps:
+      - attach_workspace:
+          at: ~/project
+      - restore_mix_cache:
+          cache_key: v1-mix-deps-<< pipeline.parameters.elixir_image_tag >>-{{ checksum "mix.lock" }}
+      - run:
+          name: Sobelow + mix audit
+          command: |
+            mix sobelow -i Config.HTTPS --exit
+            mix deps.audit --format short
+
+  test:
+    parallelism: << pipeline.parameters.parallel_tests >>
+    docker:
+      - image: cimg/elixir:<< pipeline.parameters.elixir_image_tag >>
+        environment:
+          MIX_ENV: test
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGHOST: 127.0.0.1
+          PGDATABASE: net_auto_test
+      - image: cimg/postgres:<< pipeline.parameters.pg_version >>
+        environment:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: net_auto_test
+    working_directory: ~/project/net_auto
+    steps:
+      - attach_workspace:
+          at: ~/project
+      - restore_mix_cache:
+          cache_key: v1-mix-deps-<< pipeline.parameters.elixir_image_tag >>-{{ checksum "mix.lock" }}
+      - restore_build_cache:
+          cache_key: v1-build-<< pipeline.parameters.elixir_image_tag >>-{{ checksum "mix.lock" }}
+      - wait_for_postgres
+      - run:
+          name: Prepare database
+          command: |
+            MIX_ENV=test mix ecto.create --quiet
+            MIX_ENV=test mix ecto.migrate --quiet
+      - run:
+          name: Run split tests
+          command: |
+            mkdir -p test_results
+            circleci tests glob "test/**/*_test.exs" | circleci tests split --split-by=timings > test_files.txt
+            if [[ -s test_files.txt ]]; then
+              xargs -a test_files.txt mix test --color --max-failures 1
+            else
+              mix test --color --max-failures 1
+            fi
+      - run:
+          name: Coverage & gate (node 0)
+          command: |
+            if [[ "${CIRCLE_NODE_INDEX}" == "0" ]]; then
+              mix coveralls.json
+              ../scripts/ci/coverage_gate.sh 85 cover/excoveralls.json
+            else
+              echo "Skipping coverage on node ${CIRCLE_NODE_INDEX}";
+            fi
+      - run:
+          name: Prepare artifact directories
+          command: |
+            mkdir -p cover tmp test_results
+      - store_test_results:
+          path: test_results
+      - store_artifacts:
+          path: test_results
+      - store_artifacts:
+          path: cover
+      - store_artifacts:
+          path: tmp
+
+  build_release:
+    docker:
+      - image: cimg/elixir:<< pipeline.parameters.elixir_image_tag >>
+        environment:
+          MIX_ENV: prod
+    working_directory: ~/project/net_auto
+    steps:
+      - attach_workspace:
+          at: ~/project
+      - restore_mix_cache:
+          cache_key: v1-mix-deps-<< pipeline.parameters.elixir_image_tag >>-{{ checksum "mix.lock" }}
+      - restore_build_cache:
+          cache_key: v1-build-<< pipeline.parameters.elixir_image_tag >>-{{ checksum "mix.lock" }}
+      - run:
+          name: Compile warnings-as-errors
+          command: |
+            MIX_ENV=prod mix compile --warnings-as-errors
+      - run:
+          name: Assets deploy
+          command: |
+            MIX_ENV=prod mix assets.deploy
+      - run:
+          name: Build release
+          command: |
+            MIX_ENV=prod mix release
+      - store_artifacts:
+          path: _build/prod/rel
+
+  docker_build_push:
+    parameters:
+      docker_push:
+        type: boolean
+        default: false
+    docker:
+      - image: cimg/base:stable
+    working_directory: ~/project/net_auto
+    steps:
+      - run:
+          name: Respect docker_push flag
+          command: |
+            if [ "<< parameters.docker_push >>" != "true" ]; then
+              echo "docker_push=false; halting job."
+              circleci-agent step halt
+            fi
+      - attach_workspace:
+          at: ~/project
+      - setup_remote_docker
+      - run:
+          name: Docker login (GHCR)
+          command: |
+            echo "$GHCR_PAT" | docker login ghcr.io -u "$CIRCLE_PROJECT_USERNAME" --password-stdin
+      - run:
+          name: Build & push image
+          command: |
+            IMAGE="ghcr.io/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}:${CIRCLE_SHA1}"
+            docker build -f Dockerfile -t "$IMAGE" .
+            docker push "$IMAGE"
+
+  deploy_stub:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - run:
+          name: Deployment placeholder
+          command: echo "Deploy stub - replace with real deployment."
+
 workflows:
-  say-hello-workflow: # This is the name of the workflow, feel free to change it to better match your workflow.
-    # Inside the workflow, you define the jobs you want to run.
+  ci:
     jobs:
-      - say-hello
+      - setup
+      - deps:
+          requires:
+            - setup
+      - lint:
+          requires:
+            - deps
+      - security:
+          requires:
+            - deps
+      - dialyzer:
+          requires:
+            - deps
+      - test:
+          requires:
+            - deps
+      - build_release:
+          requires:
+            - lint
+            - security
+            - dialyzer
+            - test
+      - docker_build_push:
+          docker_push: << pipeline.parameters.docker_push >>
+          context:
+            - netauto-ci
+          requires:
+            - build_release
+
+  nightly:
+    triggers:
+      - schedule:
+          cron: "0 2 * * *"
+          filters:
+            branches:
+              only: main
+    jobs:
+      - setup
+      - deps:
+          requires:
+            - setup
+      - security:
+          requires:
+            - deps
+      - dialyzer:
+          requires:
+            - deps
+      - test:
+          requires:
+            - deps
+      - build_release:
+          requires:
+            - security
+            - dialyzer
+            - test
+
+  release:
+    jobs:
+      - setup:
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
+      - deps:
+          requires:
+            - setup
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
+      - lint:
+          requires:
+            - deps
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
+      - security:
+          requires:
+            - deps
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
+      - dialyzer:
+          requires:
+            - deps
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
+      - test:
+          requires:
+            - deps
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
+      - build_release:
+          requires:
+            - lint
+            - security
+            - dialyzer
+            - test
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
+      - docker_build_push:
+          docker_push: true
+          context:
+            - netauto-ci
+          requires:
+            - build_release
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
+      - deploy_gate:
+          type: approval
+          requires:
+            - docker_build_push
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
+      - deploy_stub:
+          requires:
+            - deploy_gate
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/

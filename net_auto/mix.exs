@@ -5,7 +5,7 @@ defmodule NetAuto.MixProject do
     [
       app: :net_auto,
       version: "0.1.0",
-      elixir: "~> 1.17",
+      elixir: "~> 1.19",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
@@ -43,7 +43,13 @@ defmodule NetAuto.MixProject do
 
   def cli do
     [
-      preferred_envs: [precommit: :test, dialyzer: :dev]
+      preferred_envs: [
+        precommit: :test,
+        dialyzer: :dev,
+        coveralls: :test,
+        "coveralls.json": :test,
+        "coveralls.html": :test
+      ]
     ]
   end
 
@@ -92,8 +98,11 @@ defmodule NetAuto.MixProject do
       {:mishka_chelekom, "~> 0.0.8", only: :dev},
       {:mox, "~> 1.1", only: :test},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
-      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
-      {:sobelow, "~> 0.14", only: :dev}
+      {:dialyxir, "~> 1.4", only: [:dev], runtime: false},
+      {:sobelow, "~> 0.13", only: [:dev, :test], runtime: false},
+      {:mix_audit, "~> 2.1", only: [:dev, :test], runtime: false},
+      {:junit_formatter, "~> 3.4", only: [:test]},
+      {:excoveralls, "~> 0.18", only: [:test]}
     ]
   end
 

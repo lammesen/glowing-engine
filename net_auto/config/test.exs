@@ -51,3 +51,11 @@ config :net_auto, Oban,
   testing: :manual,
   queues: [default: 10, retention: 5, bulk: 5],
   plugins: false
+
+config :junit_formatter,
+  report_dir: "test_results",
+  automatic_create_dir?: true,
+  include_filename?: true
+
+config :excoveralls,
+  coverage_options: [treat_no_relevant_lines_as_covered: true]

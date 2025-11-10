@@ -9,7 +9,11 @@ defmodule NetAutoWeb.Router do
     plug :fetch_live_flash
     plug :put_root_layout, html: {NetAutoWeb.Layouts, :root}
     plug :protect_from_forgery
-    plug :put_secure_browser_headers
+
+    plug :put_secure_browser_headers,
+      content_security_policy:
+        "default-src 'self'; img-src 'self' data:; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'"
+
     plug :fetch_current_scope_for_user
   end
 

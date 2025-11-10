@@ -1,0 +1,7 @@
+hostname: LAB-R8
+site: SITE-D
+mgmt_ip: 10.10.0.8
+commands:
+  show version:
+    - "Cisco IOS Software, {hostname} Software (X86_64_IOSXE), Version 17.3"
+    - "{hostname} uptime is 3 days"

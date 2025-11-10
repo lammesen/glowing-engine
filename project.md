@@ -76,6 +76,8 @@ NetAuto.Application
 | WS09 | Observability | `/lib/*` `/config` | PromEx dashboards/metrics; Telemetry events wired |
 | WS10 | Bulk & retention (optional) | `/lib/*` `/priv/repo` | Oban worker for purge; (optional) fan‑out bulk runner |
 
+> **Execution note:** before touching a workstream, create the branch named in this table (e.g., `ws02-db-schemas`) from `main`, run `npm install` at the repo root to install the shared `@opencode-ai/sdk` helpers, and record ownership/status in `docs/workstreams/WS-ownership-checklist.md`.
+
 **Status snapshot:** `/devices` (WS07) and `/devices/:id` (WS08) are live with Chelekom tables/forms plus streamed output; WS10’s bulk fan-out + `/bulk/:ref` progress view and retention knobs are wired behind Oban.
 
 **Avoid collisions**

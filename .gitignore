@@ -1,1 +1,9 @@
 .worktrees/
+
+.env
+net_auto/.env
+node_modules/
+tmp_dev.log
+tmp_phx_server.log
+*.log
+

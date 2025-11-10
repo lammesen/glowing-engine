@@ -1,0 +1,124 @@
+x-sim-base: &sim-base
+  image: netauto/cisco-sim:latest
+  restart: unless-stopped
+
+services:
+  cisco-sim-01:
+    <<: *sim-base
+    container_name: cisco-sim-01
+    ports:
+      - "2201:22"
+    volumes:
+      - ./sim_devices/devices/device01.yml:/data/device.yml:ro
+    environment:
+      DEVICE_HOSTNAME: LAB-R1
+      DEVICE_SITE: SITE-A
+      DEVICE_MGMT_IP: 10.10.0.1
+
+  cisco-sim-02:
+    <<: *sim-base
+    container_name: cisco-sim-02
+    ports:
+      - "2202:22"
+    volumes:
+      - ./sim_devices/devices/device02.yml:/data/device.yml:ro
+    environment:
+      DEVICE_HOSTNAME: LAB-R2
+      DEVICE_SITE: SITE-A
+      DEVICE_MGMT_IP: 10.10.0.2
+
+  cisco-sim-03:
+    <<: *sim-base
+    container_name: cisco-sim-03
+    ports:
+      - "2203:22"
+    volumes:
+      - ./sim_devices/devices/device03.yml:/data/device.yml:ro
+    environment:
+      DEVICE_HOSTNAME: LAB-R3
+      DEVICE_SITE: SITE-B
+      DEVICE_MGMT_IP: 10.10.0.3
+
+  cisco-sim-04:
+    <<: *sim-base
+    container_name: cisco-sim-04
+    ports:
+      - "2204:22"
+    volumes:
+      - ./sim_devices/devices/device04.yml:/data/device.yml:ro
+    environment:
+      DEVICE_HOSTNAME: LAB-R4
+      DEVICE_SITE: SITE-B
+      DEVICE_MGMT_IP: 10.10.0.4
+
+  cisco-sim-05:
+    <<: *sim-base
+    container_name: cisco-sim-05
+    ports:
+      - "2205:22"
+    volumes:
+      - ./sim_devices/devices/device05.yml:/data/device.yml:ro
+    environment:
+      DEVICE_HOSTNAME: LAB-R5
+      DEVICE_SITE: SITE-C
+      DEVICE_MGMT_IP: 10.10.0.5
+
+  cisco-sim-06:
+    <<: *sim-base
+    container_name: cisco-sim-06
+    ports:
+      - "2206:22"
+    volumes:
+      - ./sim_devices/devices/device06.yml:/data/device.yml:ro
+    environment:
+      DEVICE_HOSTNAME: LAB-R6
+      DEVICE_SITE: SITE-C
+      DEVICE_MGMT_IP: 10.10.0.6
+
+  cisco-sim-07:
+    <<: *sim-base
+    container_name: cisco-sim-07
+    ports:
+      - "2207:22"
+    volumes:
+      - ./sim_devices/devices/device07.yml:/data/device.yml:ro
+    environment:
+      DEVICE_HOSTNAME: LAB-R7
+      DEVICE_SITE: SITE-D
+      DEVICE_MGMT_IP: 10.10.0.7
+
+  cisco-sim-08:
+    <<: *sim-base
+    container_name: cisco-sim-08
+    ports:
+      - "2208:22"
+    volumes:
+      - ./sim_devices/devices/device08.yml:/data/device.yml:ro
+    environment:
+      DEVICE_HOSTNAME: LAB-R8
+      DEVICE_SITE: SITE-D
+      DEVICE_MGMT_IP: 10.10.0.8
+
+  cisco-sim-09:
+    <<: *sim-base
+    container_name: cisco-sim-09
+    ports:
+      - "2209:22"
+    volumes:
+      - ./sim_devices/devices/device09.yml:/data/device.yml:ro
+    environment:
+      DEVICE_HOSTNAME: LAB-R9
+      DEVICE_SITE: SITE-E
+      DEVICE_MGMT_IP: 10.10.0.9
+
+  cisco-sim-10:
+    <<: *sim-base
+    container_name: cisco-sim-10
+    ports:
+      - "2210:22"
+    volumes:
+      - ./sim_devices/devices/device10.yml:/data/device.yml:ro
+    environment:
+      DEVICE_HOSTNAME: LAB-R10
+      DEVICE_SITE: SITE-E
+      DEVICE_MGMT_IP: 10.10.0.10

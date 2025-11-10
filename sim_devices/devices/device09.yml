@@ -1,0 +1,7 @@
+hostname: LAB-R9
+site: SITE-E
+mgmt_ip: 10.10.0.9
+commands:
+  show inventory:
+    - "NAME: \"Chassis\", DESCR: \"Aggregation Router\""
+    - "PID: AGG-RTR, VID: V01, SN: R9SN0009"

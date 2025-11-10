@@ -1,0 +1,9 @@
+hostname: LAB-R2
+site: SITE-A
+mgmt_ip: 10.10.0.2
+commands:
+  show version:
+    - "Cisco IOS Software, {hostname} Software (X86_64_IOSXE), Version 17.6"
+    - "Compiled Mon 02-Sep-24 09:00 by prod"
+    - "ROM: IOS-XE ROMMON"
+    - "{hostname} uptime is 6 days"

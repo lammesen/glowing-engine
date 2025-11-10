@@ -1,0 +1,23 @@
+commands:
+  show version:
+    - "Cisco IOS Software, {hostname} Software (X86_64_IOSXE), Version 17.9"
+    - "Compiled Tue 01-Oct-24 07:00 by prod"
+    - "ROM: IOS-XE ROMMON"
+    - "{hostname} uptime is 1 week, 2 days, 3 hours"
+  show running-config:
+    - "Building configuration..."
+    - "Current configuration : 2048 bytes"
+    - "hostname {hostname}"
+    - "!"
+    - "interface Loopback0"
+    - " ip address {mgmt_ip} 255.255.255.255"
+    - "!"
+    - "line vty 0 4"
+    - " transport input ssh"
+  show ip interface brief:
+    - "Interface              IP-Address      OK? Method Status                Protocol"
+    - "GigabitEthernet0/0    192.0.2.1       YES NVRAM  up                    up"
+    - "Loopback0             {mgmt_ip} YES manual up                    up"
+  show inventory:
+    - "NAME: \"Chassis\", DESCR: \"Virtual Cisco Simulator\""
+    - "PID: NETAUTO-SIM, VID: V01, SN: NA{hostname}"

@@ -24,8 +24,18 @@ config :net_auto, NetAutoWeb.Endpoint,
     ip: {127, 0, 0, 1},
     port: 4001,
     cipher_suite: :strong,
-    keyfile: "priv/cert/selfsigned_key.pem",
-    certfile: "priv/cert/selfsigned.pem"
+    # mkcert dev certs generated via `mkcert -key-file priv/cert/localhost-key.pem -cert-file priv/cert/localhost-cert.pem localhost 127.0.0.1 ::1`
+    keyfile: "priv/cert/localhost-key.pem",
+    certfile: "priv/cert/localhost-cert.pem"
+  ],
+  # Force HTTP/1.1 in dev so browsers that balk at HTTP/2 on self-signed certs don't error out.
+  http_2_options: [enabled: false],
+  # Generated URLs (emails, redirects) should default to 127.0.0.1 so
+  # users can click links without editing hostnames when browsers prefer IPv6 localhost.
+  url: [
+    host: System.get_env("PHX_HOST", "127.0.0.1"),
+    port: 4001,
+    scheme: System.get_env("PHX_SCHEME", "https")
   ],
   check_origin: false,
   code_reloader: true,

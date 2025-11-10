@@ -1,0 +1,6 @@
+state/
+.ssh/
+*.log
+*.pid
+*.sock
+__pycache__/

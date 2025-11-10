@@ -6,6 +6,7 @@ app = "netauto"
 
 [build]
   dockerfile = "net_auto/Dockerfile"
+  context = "."
 
 [http_service]
   internal_port = 8080

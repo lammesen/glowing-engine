@@ -8,13 +8,16 @@ Deploy `net_auto/` to Fly.io as a Mix release that talks to your Neon-hosted Pos
 # Create the Fly app (idempotent)
 flyctl apps create netauto || true
 
-# Store secrets (Neon URL uses the pooled endpoint)
+# Store secrets (Neon URL uses the pooled endpoint). Run the mix command from net_auto/.
+cd net_auto && SECRET_KEY_BASE=$(mix phx.gen.secret) && cd ..
 flyctl secrets set \
   DATABASE_URL="postgres://<user>:<pass>@<neon-project>-pooler.neon.tech/<db>?sslmode=require" \
-  SECRET_KEY_BASE="$(mix phx.gen.secret)" \
+  SECRET_KEY_BASE="$SECRET_KEY_BASE" \
   PHX_HOST="netauto.fly.dev" \
-  PHX_SERVER=true \
-  POOL_SIZE=5
+  PHX_SERVER=true
+
+# Optional: override the default pool size (runtime.exs defaults to 15)
+# flyctl secrets set POOL_SIZE=15
 ```
 
 ## Deploy + operations

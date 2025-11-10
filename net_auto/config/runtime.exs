@@ -62,12 +62,17 @@ if config_env() == :prod do
     System.get_env("DATABASE_URL") ||
       raise "DATABASE_URL is missing (e.g., ecto://USER:PASS@HOST/DATABASE?sslmode=require)"
 
-  pool_size = String.to_integer(System.get_env("POOL_SIZE") || "5")
+  # Neon’s pooler endpoint can handle higher pool sizes; default to 15 but allow overrides.
+  pool_size = String.to_integer(System.get_env("POOL_SIZE") || "15")
 
   config :net_auto, NetAuto.Repo,
     url: database_url,
     pool_size: pool_size,
-    ssl: true
+    ssl: true,
+    ssl_opts: [
+      verify: :verify_peer,
+      cacerts: :public_key.cacerts_get()
+    ]
 
   host = System.get_env("PHX_HOST") || "localhost"
   port = String.to_integer(System.get_env("PORT") || "8080")
@@ -76,7 +81,7 @@ if config_env() == :prod do
 
   config :net_auto, NetAutoWeb.Endpoint,
     url: [host: host, scheme: "https", port: 443],
-    http: [ip: {0, 0, 0, 0}, port: port]
+    http: [ip: {0, 0, 0, 0, 0, 0, 0, 0}, port: port]
 
   if System.get_env("PHX_SERVER") do
     config :net_auto, NetAutoWeb.Endpoint, server: true

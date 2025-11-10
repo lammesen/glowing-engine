@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 """Minimal Cisco-like CLI served over SSH login shell."""
+
 from __future__ import annotations
 
 import os
 import sys
 from pathlib import Path
 from typing import Dict, List
+
+PLACEHOLDER_KEYS = ("hostname", "site", "mgmt_ip")
 
 try:
     import yaml  # type: ignore
@@ -45,8 +48,15 @@ def merge_commands(base: dict, overrides: dict) -> Dict[str, List[str]]:
     return merged
 
 
+def render_template(value: str, context: Dict[str, str]) -> str:
+    rendered = value
+    for key in PLACEHOLDER_KEYS:
+        rendered = rendered.replace(f"{{{key}}}", context.get(key, ""))
+    return rendered
+
+
 def format_output(lines: List[str], context: Dict[str, str]) -> str:
-    return "\n".join(line.format(**context) for line in lines)
+    return "\n".join(render_template(line, context) for line in lines)
 
 
 def main() -> None:
@@ -64,7 +74,7 @@ def main() -> None:
     }
 
     while True:
-        prompt = prompt_map.get(mode, "{hostname}>").format(**context)
+        prompt = render_template(prompt_map.get(mode, "{hostname}>"), context)
         try:
             line = input(prompt + " ")
         except EOFError:

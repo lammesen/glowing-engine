@@ -1,6 +1,20 @@
 alias NetAuto.{Inventory, Repo}
 alias NetAuto.Inventory.Device
 
+if not function_exported?(Inventory, :create_device, 1) do
+  raise "NetAuto.Inventory.create_device/1 is unavailable. Did you run `mix deps.get` and compile?"
+end
+
+sim_username =
+  System.get_env("NET_AUTO_LAB_SIM_USERNAME") ||
+    System.get_env("NETAUTO_SIM_USER") ||
+    "netops"
+
+sim_cred_ref =
+  System.get_env("NET_AUTO_SIM_CRED_REF") ||
+    System.get_env("NETAUTO_SIM_CRED_REF") ||
+    "env:LAB_SIM"
+
 # Seed 10 simulator-backed devices that point to localhost SSH ports 2201-2210.
 # Before running this script, start the Docker lab via `bin/launch-cisco-sims.sh`.
 
@@ -29,8 +43,8 @@ Enum.each(SeedHelpers.device_attrs(), fn {hostname, site, mgmt_ip, port} ->
         ip: "127.0.0.1",
         port: port,
         protocol: :ssh,
-        username: System.get_env("NETAUTO_SIM_USER", "netops"),
-        cred_ref: System.get_env("NETAUTO_SIM_CRED_REF", "env:LAB_SIM"),
+        username: sim_username,
+        cred_ref: sim_cred_ref,
         vendor: "cisco",
         model: "simulator",
         site: site,

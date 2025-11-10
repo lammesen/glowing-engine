@@ -1,7 +1,9 @@
 # syntax=docker/dockerfile:1.7
 
 # --- build stage ---
-FROM hexpm/elixir:1.19.0-rc.1-erlang-26.2.5.11-debian-bullseye-20251103-slim AS build
+FROM cimg/elixir:1.19.1-erlang-27.2.2-node AS build
+
+USER root
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential git curl nodejs npm && rm -rf /var/lib/apt/lists/*

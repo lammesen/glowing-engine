@@ -13,7 +13,7 @@
 ### Task 1: Replace Dockerfile with Fly-ready release build
 
 **Files:**
-- Update: `net_auto/Dockerfile`
+- Update: `Dockerfile`
 
 **Steps:**
 1. Overwrite with the provided multi-stage definition (hexpm build image + Debian runtime) using Elixir 1.19.0 / OTP 27.1 tag, installing Node/npm in build stage.
@@ -50,7 +50,7 @@
 **Steps:**
 1. Set `app = "netauto"`.
 2. Under `[env]`, define `PHX_SERVER = "true"` and `PORT = "8080"`.
-3. `[build]` points to `dockerfile = "net_auto/Dockerfile"`.
+3. `[build]` points to `dockerfile = "Dockerfile"`.
 4. `[http_service]` block per requirements (internal_port 8080, force_https true, auto start/stop, min machines 1).
 5. `[deploy]` release command invoking the migration helper: `/app/bin/net_auto eval 'Elixir.NetAuto.Release.migrate()'`.
 
@@ -79,7 +79,6 @@
 
 **Steps:**
 1. Run `cd net_auto && MIX_ENV=prod mix release` (optional) to ensure Docker build inputs compile locally.
-2. Run `flyctl deploy --config ./fly.toml --dry-run` if available, or at least `docker build -f net_auto/Dockerfile net_auto` to catch syntax issues (skip if environment lacks docker).
+2. Run `flyctl deploy --config ./fly.toml --dry-run` if available, or at least `docker build -f Dockerfile .` to catch syntax issues (skip if environment lacks docker).
 3. `mix test` to confirm no regressions.
 4. Summarize commands required to set Fly secrets.
-

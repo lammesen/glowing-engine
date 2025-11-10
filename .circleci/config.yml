@@ -12,7 +12,7 @@ parameters:
     default: "16.3"
   elixir_image_tag:
     type: string
-    default: "1.19.2"
+    default: "1.19.1-erlang-27.2.2-node"
 
 commands:
   checkout_repo:
@@ -80,7 +80,7 @@ commands:
 jobs:
   setup:
     docker:
-      - image: elixir:<< pipeline.parameters.elixir_image_tag >>
+      - image: cimg/elixir:<< pipeline.parameters.elixir_image_tag >>
     working_directory: ~/project/net_auto
     steps:
       - checkout_repo
@@ -96,7 +96,7 @@ jobs:
 
   deps:
     docker:
-      - image: elixir:<< pipeline.parameters.elixir_image_tag >>
+      - image: cimg/elixir:<< pipeline.parameters.elixir_image_tag >>
         environment:
           MIX_ENV: dev
       - image: cimg/postgres:<< pipeline.parameters.pg_version >>
@@ -135,7 +135,7 @@ jobs:
 
   lint:
     docker:
-      - image: elixir:<< pipeline.parameters.elixir_image_tag >>
+      - image: cimg/elixir:<< pipeline.parameters.elixir_image_tag >>
         environment:
           MIX_ENV: dev
     working_directory: ~/project/net_auto
@@ -153,7 +153,7 @@ jobs:
 
   dialyzer:
     docker:
-      - image: elixir:<< pipeline.parameters.elixir_image_tag >>
+      - image: cimg/elixir:<< pipeline.parameters.elixir_image_tag >>
         environment:
           MIX_ENV: dev
     working_directory: ~/project/net_auto
@@ -182,7 +182,7 @@ jobs:
 
   security:
     docker:
-      - image: elixir:<< pipeline.parameters.elixir_image_tag >>
+      - image: cimg/elixir:<< pipeline.parameters.elixir_image_tag >>
         environment:
           MIX_ENV: dev
     working_directory: ~/project/net_auto
@@ -200,7 +200,7 @@ jobs:
   test:
     parallelism: << pipeline.parameters.parallel_tests >>
     docker:
-      - image: elixir:<< pipeline.parameters.elixir_image_tag >>
+      - image: cimg/elixir:<< pipeline.parameters.elixir_image_tag >>
         environment:
           MIX_ENV: test
           PGUSER: postgres
@@ -223,9 +223,11 @@ jobs:
       - run:
           name: Install Postgres client tools
           command: |
-            apt-get update
-            apt-get install -y --no-install-recommends postgresql-client
-            rm -rf /var/lib/apt/lists/*
+            if ! command -v pg_isready >/dev/null 2>&1; then
+              sudo apt-get update || apt-get update
+              sudo apt-get install -y --no-install-recommends postgresql-client || apt-get install -y --no-install-recommends postgresql-client
+              rm -rf /var/lib/apt/lists/*
+            fi
       - wait_for_postgres
       - run:
           name: Prepare database
@@ -266,7 +268,7 @@ jobs:
 
   build_release:
     docker:
-      - image: elixir:<< pipeline.parameters.elixir_image_tag >>
+      - image: cimg/elixir:<< pipeline.parameters.elixir_image_tag >>
         environment:
           MIX_ENV: prod
     working_directory: ~/project/net_auto

@@ -12,7 +12,7 @@ defmodule NetAutoWeb.Router do
 
     plug :put_secure_browser_headers,
       content_security_policy:
-        "default-src 'self'; img-src 'self' data:; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'"
+        "default-src 'self'; img-src 'self' data:; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'"
 
     plug :fetch_current_scope_for_user
   end

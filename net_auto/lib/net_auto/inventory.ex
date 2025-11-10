@@ -211,11 +211,11 @@ defmodule NetAuto.Inventory do
   defp normalize_filter_opts(opts) when is_list(opts),
     do: opts |> Map.new() |> normalize_filter_opts()
 
+  @filter_key_map %{"query" => :query, "sort_by" => :sort_by, "sort_dir" => :sort_dir}
+
   defp normalize_filter_key(key) when is_atom(key), do: key
-  defp normalize_filter_key("query"), do: :query
-  defp normalize_filter_key("sort_by"), do: :sort_by
-  defp normalize_filter_key("sort_dir"), do: :sort_dir
-  defp normalize_filter_key(other) when is_binary(other), do: String.to_atom(other)
+
+  defp normalize_filter_key(key) when is_binary(key), do: Map.get(@filter_key_map, key, key)
 
   defp broadcast_device({:ok, device} = result, action) do
     PubSub.broadcast(NetAuto.PubSub, @device_topic, {:device, action, device})

@@ -10,6 +10,8 @@ parameters:
   pg_version:
     type: string
     default: "16.3"
+  # Pin to a published tag. Node variant included for assets.
+  # See CircleCI cimg/elixir tags.
   elixir_image_tag:
     type: string
     default: "1.19.1-erlang-27.2.2-node"
@@ -78,12 +80,35 @@ commands:
             exit 1
 
 jobs:
+  # Fail fast if someone passes a bad image tag via pipeline parameters.
+  validate_images:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - run:
+          name: Echo effective tags
+          command: |
+            echo "ELIXIR_IMAGE_TAG=<< pipeline.parameters.elixir_image_tag >>"
+            echo "POSTGRES_TAG=<< pipeline.parameters.pg_version >>"
+      - setup_remote_docker
+      - run:
+          name: Verify images exist
+          command: |
+            docker --version
+            docker manifest inspect "cimg/elixir:<< pipeline.parameters.elixir_image_tag >>" >/dev/null \
+              || { echo "Invalid elixir_image_tag: << pipeline.parameters.elixir_image_tag >>" >&2; exit 1; }
+            docker manifest inspect "cimg/postgres:<< pipeline.parameters.pg_version >>" >/dev/null \
+              || { echo "Invalid pg_version: << pipeline.parameters.pg_version >>" >&2; exit 1; }
+
   setup:
     docker:
       - image: cimg/elixir:<< pipeline.parameters.elixir_image_tag >>
     working_directory: ~/project/net_auto
     steps:
       - checkout_repo
+      - run:
+          name: Show chosen Elixir image
+          command: echo 'Using cimg/elixir:<< pipeline.parameters.elixir_image_tag >>'
       - run:
           name: Install local Hex/Rebar
           command: |
@@ -335,7 +360,10 @@ jobs:
 workflows:
   ci:
     jobs:
-      - setup
+      - validate_images
+      - setup:
+          requires:
+            - validate_images
       - deps:
           requires:
             - setup
@@ -371,7 +399,10 @@ workflows:
             branches:
               only: main
     jobs:
-      - setup
+      - validate_images
+      - setup:
+          requires:
+            - validate_images
       - deps:
           requires:
             - setup
@@ -392,7 +423,15 @@ workflows:
 
   release:
     jobs:
+      - validate_images:
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
       - setup:
+          requires:
+            - validate_images
           filters:
             tags:
               only: /^v.*/
